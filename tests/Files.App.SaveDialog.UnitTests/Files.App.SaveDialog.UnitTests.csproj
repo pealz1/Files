@@ -7,6 +7,7 @@
 		<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 		<IsPackable>false</IsPackable>
 		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
 		<OutputType>Exe</OutputType>
 	</PropertyGroup>
 
@@ -16,10 +17,19 @@
 		<PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
 	</ItemGroup>
 
-	<!-- Link-compile the pure helpers under test (no WinUI dependency) -->
+	<ItemGroup>
+		<Using Include="System.Diagnostics" />
+		<Using Include="Files.App.Data.Enums" />
+	</ItemGroup>
+
+	<!-- Link-compile the pure source under test (no WinUI dependency) -->
 	<ItemGroup>
 		<Compile Include="..\..\src\Files.App\Utils\SaveDialog\FileTypeChoice.cs" Link="FileTypeChoice.cs" />
 		<Compile Include="..\..\src\Files.App\Utils\SaveDialog\SaveDialogPathHelper.cs" Link="SaveDialogPathHelper.cs" />
+		<Compile Include="..\..\src\Files.App\Data\Enums\ParsedCommandType.cs" Link="ParsedCommandType.cs" />
+		<Compile Include="..\..\src\Files.App\Utils\CommandLine\ParsedCommand.cs" Link="ParsedCommand.cs" />
+		<Compile Include="..\..\src\Files.App\Utils\CommandLine\ParsedCommands.cs" Link="ParsedCommands.cs" />
+		<Compile Include="..\..\src\Files.App\Utils\CommandLine\CommandLineParser.cs" Link="CommandLineParser.cs" />
 	</ItemGroup>
 
 </Project>

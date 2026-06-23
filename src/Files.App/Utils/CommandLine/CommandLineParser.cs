@@ -67,6 +67,22 @@ namespace Files.App.Utils.CommandLine
 						command.Type = ParsedCommandType.TagFiles;
 						break;
 
+					case string s when "SaveDialog".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.SaveDialog;
+						break;
+
+					case string s when "SaveAs".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.SaveAs;
+						break;
+
+					case string s when "FileTypes".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.FileTypes;
+						break;
+
+					case string s when "FileTypeIndex".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.FileTypeIndex;
+						break;
+
 					default: //case "Cmdless":
 						try
 						{

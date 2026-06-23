@@ -41,6 +41,26 @@ namespace Files.App.Data.Enums
 		/// <summary>
 		/// Tag files command type
 		/// </summary>
-		TagFiles
+		TagFiles,
+
+		/// <summary>
+		/// Enter Save dialog mode.
+		/// </summary>
+		SaveDialog,
+
+		/// <summary>
+		/// Suggested file name for the Save dialog.
+		/// </summary>
+		SaveAs,
+
+		/// <summary>
+		/// Pipe-delimited Save dialog file-type filters.
+		/// </summary>
+		FileTypes,
+
+		/// <summary>
+		/// 1-based default file-type index for the Save dialog.
+		/// </summary>
+		FileTypeIndex
 	}
 }
