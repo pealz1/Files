@@ -32,7 +32,7 @@ namespace Files.App
 			MinHeight = 316;
 			MinWidth = 416;
 			ExtendsContentIntoTitleBar = true;
-			Title = "Files";
+			Title = "Files Pro";
 			PersistenceId = "FilesMainWindow";
 			AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
 			AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
@@ -79,7 +79,7 @@ namespace Files.App
 					{
 						// When the navigation stack isn't restored navigate to the first page,
 						// configuring the new page by passing required information as a navigation parameter
-						rootFrame.Navigate(typeof(MainPage), launchArgs.Arguments, new SuppressNavigationTransitionInfo());
+						NavigateToMainPage(rootFrame, launchArgs.Arguments, "initial launch");
 					}
 					else if (!(string.IsNullOrEmpty(launchArgs.Arguments) && MainPageViewModel.AppInstances.Count > 0))
 					{
@@ -220,6 +220,10 @@ namespace Files.App
 
 			if (Windows.Win32.PInvoke.IsIconic(new(WindowHandle)))
 				WinUIEx.WindowExtensions.Restore(Instance); // Restore window if minimized
+
+			App.Logger.LogInformation(
+				"InitializeApplicationAsync completed. Root content: {RootContent}",
+				rootFrame.Content?.GetType().Name ?? "null");
 		}
 
 		private async Task EnsureContentHasKeyboardFocusAsync()
@@ -241,6 +245,7 @@ namespace Files.App
 					rootFrame = new() { CacheSize = 1 };
 					rootFrame.NavigationFailed += (s, e) =>
 					{
+						App.Logger.LogError("Failed to load Page {SourcePageType}.", e.SourcePageType.FullName);
 						throw new Exception("Failed to load Page " + e.SourcePageType.FullName);
 					};
 
@@ -254,6 +259,21 @@ namespace Files.App
 			{
 				return null;
 			}
+		}
+
+		private static void NavigateToMainPage(Frame rootFrame, object? parameter, string reason)
+		{
+			App.Logger.LogInformation(
+				"Navigating to MainPage. Reason: {Reason}. Parameter type: {ParameterType}",
+				reason,
+				parameter?.GetType().Name ?? "null");
+
+			rootFrame.Navigate(typeof(MainPage), parameter, new SuppressNavigationTransitionInfo());
+
+			App.Logger.LogInformation(
+				"Navigation to MainPage returned. Reason: {Reason}. Root content: {RootContent}",
+				reason,
+				rootFrame.Content?.GetType().Name ?? "null");
 		}
 
 		private async Task InitializeFromCmdLineArgsAsync(Frame rootFrame, ParsedCommands parsedCommands, string activationPath = "")
@@ -311,6 +331,22 @@ namespace Files.App
 				else
 					rootFrame.Navigate(typeof(MainPage), paneNavigationArgs, new SuppressNavigationTransitionInfo());
 			}
+
+			// Save dialog detection (collect before the navigation switch)
+			var saveDialogCmd = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.SaveDialog);
+			if (saveDialogCmd is not null)
+			{
+				var suggested = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.SaveAs)?.Payload ?? string.Empty;
+				var filtersRaw = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.FileTypes)?.Payload ?? string.Empty;
+				var indexRaw = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.FileTypeIndex)?.Payload;
+				var types = Utils.SaveDialog.SaveDialogPathHelper.ParseFileTypes(filtersRaw);
+				var index = int.TryParse(indexRaw, out var n) ? n : 1;
+
+				App.IsSaveDialog = true;
+				App.SaveDialogCommitted = false;
+				App.SaveDialogRequest = new Data.Models.SaveDialogRequest(suggested, types, index);
+			}
+
 			foreach (var command in parsedCommands)
 			{
 				switch (command.Type)
@@ -365,6 +401,13 @@ namespace Files.App
 
 					case ParsedCommandType.OutputPath:
 						App.OutputPath = command.Payload;
+						break;
+
+					case ParsedCommandType.SaveDialog:
+					case ParsedCommandType.SaveAs:
+					case ParsedCommandType.FileTypes:
+					case ParsedCommandType.FileTypeIndex:
+						// Consumed above into App.SaveDialogRequest; no navigation.
 						break;
 				}
 			}
