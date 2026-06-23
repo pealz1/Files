@@ -29,6 +29,9 @@ namespace Files.App.ViewModels
 		private DrivesViewModel DrivesViewModel { get; } = Ioc.Default.GetRequiredService<DrivesViewModel>();
 		public ShelfViewModel ShelfViewModel { get; } = Ioc.Default.GetRequiredService<ShelfViewModel>();
 
+		/// <summary>Backing state for the docked Save dialog bar (only active when launched as a save dialog).</summary>
+		public SaveDialogViewModel SaveDialogViewModel { get; } = new();
+
 		private readonly IContentPageContext context = Ioc.Default.GetRequiredService<IContentPageContext>();
 
 		// Properties
@@ -122,13 +125,15 @@ namespace Files.App.ViewModels
 			AppearanceSettingsService.ShowToolbar &&
 			context.PageType is not ContentPageTypes.Home &&
 			context.PageType is not ContentPageTypes.ReleaseNotes &&
-			context.PageType is not ContentPageTypes.Settings;
+			context.PageType is not ContentPageTypes.Settings &&
+			context.PageType is not ContentPageTypes.FilesPro;
 
 		public bool ShowStatusBar =>
 			AppearanceSettingsService.ShowStatusBar &&
 			context.PageType is not ContentPageTypes.Home &&
 			context.PageType is not ContentPageTypes.ReleaseNotes &&
-			context.PageType is not ContentPageTypes.Settings;
+			context.PageType is not ContentPageTypes.Settings &&
+			context.PageType is not ContentPageTypes.FilesPro;
 
 		public bool ShowReviewPrompt
 		{

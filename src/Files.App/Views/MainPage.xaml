@@ -54,6 +54,7 @@
 			<x:Boolean x:Key="False">False</x:Boolean>
 
 			<wctconverters:BoolNegationConverter x:Key="BoolNegationConverter" />
+			<wctconverters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
 
 			<MenuFlyout x:Key="SidebarContextMenu">
@@ -142,6 +143,7 @@
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="*" />
+			<RowDefinition Height="Auto" />
 		</Grid.RowDefinitions>
 
 		<!--  Background Image  -->
@@ -371,6 +373,13 @@
 			CloseButtonContent="{helpers:ResourceString Name=Dismiss}"
 			IsOpen="{x:Bind ViewModel.ShowSponsorPrompt, Mode=OneWay}"
 			Subtitle="{helpers:ResourceString Name=SponsorSubtitle}" />
+
+		<!--  Save dialog bar (only visible when launched as a save dialog)  -->
+		<uc:SaveDialogBar
+			x:Name="SaveDialogBarControl"
+			Grid.Row="3"
+			DataContext="{x:Bind ViewModel.SaveDialogViewModel, Mode=OneWay}"
+			Visibility="{x:Bind ViewModel.SaveDialogViewModel.IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 		<VisualStateManager.VisualStateGroups>
 			<VisualStateGroup x:Name="SidebarWidthStates">
