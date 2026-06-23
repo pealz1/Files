@@ -229,19 +229,33 @@ namespace Files.App
 
 			if (OutputPath is not null)
 			{
-				var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
-				if (instance is null)
-					return;
+				if (IsSaveDialog)
+				{
+					// Save mode commits ONLY via the explicit Save button (CommitSaveResult).
+					// Closing the window without a commit is a cancel: write nothing so the native
+					// side returns ERROR_CANCELLED instead of overwriting a highlighted file.
+					if (!SaveDialogCommitted)
+					{
+						using var cancelEvent = PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
+						PInvoke.SetEvent(cancelEvent);
+					}
+				}
+				else
+				{
+					var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
+					if (instance is null)
+						return;
 
-				var items = (instance.TabItemContent as ShellPanesPage)?.ActivePane?.SlimContentPage?.SelectedItems;
-				if (items is null)
-					return;
+					var items = (instance.TabItemContent as ShellPanesPage)?.ActivePane?.SlimContentPage?.SelectedItems;
+					if (items is null)
+						return;
 
-				var results = items.Select(x => x.ItemPath).ToList();
-				System.IO.File.WriteAllLines(OutputPath, results);
+					var results = items.Select(x => x.ItemPath).ToList();
+					System.IO.File.WriteAllLines(OutputPath, results);
 
-				using var eventHandle = PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
-				PInvoke.SetEvent(eventHandle);
+					using var eventHandle = PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
+					PInvoke.SetEvent(eventHandle);
+				}
 			}
 
 			// Continue running the app on the background

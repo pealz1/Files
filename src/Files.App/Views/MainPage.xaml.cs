@@ -302,6 +302,92 @@ namespace Files.App.Views
 			{
 				DispatcherQueue.TryEnqueue(async () => await AppRunningAsAdminPromptAsync());
 			}
+
+			// Activate the docked Save bar when launched as a save dialog.
+			if (App.IsSaveDialog && App.SaveDialogRequest is not null)
+			{
+				ViewModel.SaveDialogViewModel.Initialize(App.SaveDialogRequest);
+				ViewModel.SaveDialogViewModel.CommitRequested += SaveDialog_CommitRequested;
+				ViewModel.SaveDialogViewModel.CancelRequested += SaveDialog_CancelRequested;
+				ViewModel.SaveDialogViewModel.NewFolderRequested += SaveDialog_NewFolderRequested;
+				DispatcherQueue.TryEnqueue(() => SaveDialogBarControl.FocusFileName());
+			}
+		}
+
+		private string GetActiveWorkingDirectory()
+		{
+			var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
+			var pane = (instance?.TabItemContent as ShellPanesPage)?.ActivePane;
+			return pane?.ShellViewModel?.WorkingDirectory ?? string.Empty;
+		}
+
+		private async void SaveDialog_CommitRequested(object? sender, EventArgs e)
+		{
+			var vm = ViewModel.SaveDialogViewModel;
+			var folder = GetActiveWorkingDirectory();
+			var type = vm.SelectedFileType ?? new Utils.SaveDialog.FileTypeChoice("All files", "*.*", "");
+
+			if (!Utils.SaveDialog.SaveDialogPathHelper.IsValidFileName(vm.FileName))
+				return;
+
+			// Reject virtual/non-filesystem locations unless the user typed an absolute path.
+			if (string.IsNullOrEmpty(folder) && !System.IO.Path.IsPathRooted(vm.FileName.Trim()))
+				return;
+
+			var fullPath = Utils.SaveDialog.SaveDialogPathHelper.ResolveTargetPath(folder, vm.FileName, type);
+
+			if (System.IO.File.Exists(fullPath))
+			{
+				var confirm = new ContentDialog
+				{
+					Title = "Replace existing file?",
+					Content = $"{System.IO.Path.GetFileName(fullPath)} already exists. Do you want to replace it?",
+					PrimaryButtonText = "Replace",
+					CloseButtonText = "Cancel",
+					DefaultButton = ContentDialogButton.Close,
+					XamlRoot = XamlRoot,
+				};
+
+				if (await confirm.ShowAsync() != ContentDialogResult.Primary)
+					return;
+			}
+
+			var index = vm.SelectedFileType is null ? 1 : vm.FileTypes.ToList().IndexOf(vm.SelectedFileType) + 1;
+			CommitSaveResult(fullPath, index);
+		}
+
+		private void SaveDialog_CancelRequested(object? sender, EventArgs e)
+		{
+			// Clean cancel: unblock the native side (empty result) and close.
+			App.SaveDialogCommitted = true;
+			SignalFileDialogEvent();
+			MainWindow.Instance.Close();
+		}
+
+		private void SaveDialog_NewFolderRequested(object? sender, EventArgs e)
+		{
+			var command = Ioc.Default.GetRequiredService<ICommandManager>().CreateFolder;
+			if (command.IsExecutable)
+				_ = command.ExecuteAsync();
+		}
+
+		private void CommitSaveResult(string fullPath, int typeIndex)
+		{
+			if (App.OutputPath is not null)
+			{
+				System.IO.File.WriteAllLines(App.OutputPath, [fullPath, $"index={typeIndex}"]);
+				App.SaveDialogCommitted = true;
+			}
+
+			SignalFileDialogEvent();
+			App.OutputPath = null; // ensure Window_Closed does not re-handle
+			MainWindow.Instance.Close();
+		}
+
+		private static void SignalFileDialogEvent()
+		{
+			using var eventHandle = Windows.Win32.PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
+			Windows.Win32.PInvoke.SetEvent(eventHandle);
 		}
 
 		private void PreviewPane_Loaded(object sender, RoutedEventArgs e)
