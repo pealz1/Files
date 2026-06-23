@@ -1,0 +1,25 @@
+<!--  Copyright (c) Files Community. Licensed under the MIT License.  -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>$(TargetFrameworkVersion)</TargetFramework>
+		<Platforms>x64</Platforms>
+		<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+		<IsPackable>false</IsPackable>
+		<Nullable>enable</Nullable>
+		<OutputType>Exe</OutputType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MSTest.TestAdapter" />
+		<PackageReference Include="MSTest.TestFramework" />
+		<PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+	</ItemGroup>
+
+	<!-- Link-compile the pure helpers under test (no WinUI dependency) -->
+	<ItemGroup>
+		<Compile Include="..\..\src\Files.App\Utils\SaveDialog\FileTypeChoice.cs" Link="FileTypeChoice.cs" />
+		<Compile Include="..\..\src\Files.App\Utils\SaveDialog\SaveDialogPathHelper.cs" Link="SaveDialogPathHelper.cs" />
+	</ItemGroup>
+
+</Project>
