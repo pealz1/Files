@@ -23,6 +23,9 @@ namespace Files.App
 
 		public static TaskCompletionSource? SplashScreenLoadingTCS { get; private set; }
 		public static string? OutputPath { get; set; }
+		public static bool IsSaveDialog { get; set; }
+		public static Data.Models.SaveDialogRequest? SaveDialogRequest { get; set; }
+		public static bool SaveDialogCommitted { get; set; }
 
 		private static CommandBarFlyout? _LastOpenedFlyout;
 		public static CommandBarFlyout? LastOpenedFlyout
@@ -62,7 +65,10 @@ namespace Files.App
 		/// </summary>
 		protected override void OnLaunched(LaunchActivatedEventArgs e)
 		{
-			_ = ActivateAsync();
+			_ = ActivateAsync().ContinueWith(task =>
+			{
+				AppLifecycleHelper.HandleAppUnhandledException(task.Exception, true);
+			}, TaskContinuationOptions.OnlyOnFaulted);
 
 			async Task ActivateAsync()
 			{
@@ -130,7 +136,11 @@ namespace Files.App
 					if (userSettingsService.GeneralSettingsService.ShowSystemTrayIcon)
 						SystemTrayIcon.Show();
 
-					_ = MainWindow.Instance.InitializeApplicationAsync(appActivationArguments.Data);
+					Logger.LogInformation("Splash screen ready or timed out; initializing main window.");
+					_ = MainWindow.Instance.InitializeApplicationAsync(appActivationArguments.Data).ContinueWith(task =>
+					{
+						AppLifecycleHelper.HandleAppUnhandledException(task.Exception, true);
+					}, TaskContinuationOptions.OnlyOnFaulted);
 				}
 				else
 				{
@@ -152,7 +162,9 @@ namespace Files.App
 					}
 				}
 
+				Logger.LogInformation("Initializing background app components.");
 				await AppLifecycleHelper.InitializeAppComponentsAsync();
+				Logger.LogInformation("Background app components initialized.");
 			}
 		}
 
