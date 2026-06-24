@@ -12,6 +12,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <utility>
 
 
 #if defined(_WIN32_WCE) && !defined(_CE_DCOM) && !defined(_CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA)
@@ -69,6 +70,9 @@ END_COM_MAP()
 	std::wstring _initName;
 	IShellItem* _initFolder;
 	IFileDialogEvents* _dialogEvents;
+
+	std::vector<std::pair<std::wstring, std::wstring>> _fileTypes; // (display, pattern)
+	UINT _fileTypeIndex = 1;
 
 	FILE* _debugStream;
 

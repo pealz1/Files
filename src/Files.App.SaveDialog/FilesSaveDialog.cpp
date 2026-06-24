@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <locale>
 #include <codecvt>
+#include <algorithm>
 
 //#define SYSTEMDIALOG
 
@@ -437,27 +438,34 @@ HRESULT __stdcall CFilesSaveDialog::Show(HWND hwndOwner)
 	
 	PWSTR pszPath = NULL;
 	WCHAR szBuf[MAX_PATH];
-	TCHAR args[1024] = { 0 };
+	TCHAR args[8192] = { 0 };
 	ExpandEnvironmentStringsW(L"%LOCALAPPDATA%\\Microsoft\\WindowsApps\\files-dev.exe", szBuf, MAX_PATH - 1);
 
 	HANDLE closeEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("FILEDIALOG"));
 
+	// Build the file-types payload: "Name1|*.png|Name2|*.*"
+	std::wstring fileTypesArg;
+	for (size_t i = 0; i < _fileTypes.size(); i++)
+	{
+		if (i > 0) fileTypesArg += L"|";
+		fileTypesArg += _fileTypes[i].first + L"|" + _fileTypes[i].second;
+	}
+
+	UINT typeIndex = _fileTypeIndex == 0 ? 1 : _fileTypeIndex;
+
 	if (_initFolder && SUCCEEDED(_initFolder->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &pszPath)))
 	{
-		if (!_initName.empty())
-		{
-			swprintf(args, _countof(args) - 1, L"\"%s\" -directory \"%s\" -outputpath \"%s\" -select \"%s\"", szBuf, pszPath, _outputPath.c_str(), _initName.c_str());
-		}
-		else
-		{
-			swprintf(args, _countof(args) - 1, L"\"%s\" -directory \"%s\" -outputpath \"%s\"", szBuf, pszPath, _outputPath.c_str());
-		}
+		swprintf(args, _countof(args) - 1,
+			L"\"%s\" -directory \"%s\" -outputpath \"%s\" -savedialog -saveas \"%s\" -filetypes \"%s\" -filetypeindex %u",
+			szBuf, pszPath, _outputPath.c_str(), _initName.c_str(), fileTypesArg.c_str(), typeIndex);
 		wcout << L"Invoking: " << args << endl;
 		CoTaskMemFree(pszPath);
 	}
 	else
 	{
-		swprintf(args, _countof(args) - 1, L"\"%s\" -outputpath \"%s\"", szBuf, _outputPath.c_str());
+		swprintf(args, _countof(args) - 1,
+			L"\"%s\" -outputpath \"%s\" -savedialog -saveas \"%s\" -filetypes \"%s\" -filetypeindex %u",
+			szBuf, _outputPath.c_str(), _initName.c_str(), fileTypesArg.c_str(), typeIndex);
 	}
 
 	std::wstring uriWithArgs = L"files-dev:?cmd=" + str2wstr(wstring_to_utf8_hex(args));
@@ -505,7 +513,15 @@ HRESULT __stdcall CFilesSaveDialog::Show(HWND hwndOwner)
 		while (std::getline(file, str))
 		{
 			std::wstring wide = converter.from_bytes(str);
-			_selectedItem = wide;
+			if (wide.rfind(L"index=", 0) == 0)
+			{
+				try { _fileTypeIndex = (UINT)std::stoul(wide.substr(6)); }
+				catch (...) {}
+			}
+			else if (!wide.empty())
+			{
+				_selectedItem = wide;
+			}
 		}
 	}
 	DeleteFile(_outputPath.c_str());
@@ -540,6 +556,16 @@ HRESULT __stdcall CFilesSaveDialog::SetFileTypes(UINT cFileTypes, const COMDLG_F
 #ifdef SYSTEMDIALOG
 	return _systemDialog->SetFileTypes(cFileTypes, rgFilterSpec);
 #endif
+	_fileTypes.clear();
+	for (UINT i = 0; i < cFileTypes; i++)
+	{
+		std::wstring name = rgFilterSpec[i].pszName ? rgFilterSpec[i].pszName : L"";
+		std::wstring spec = rgFilterSpec[i].pszSpec ? rgFilterSpec[i].pszSpec : L"";
+		// '|' is our delimiter; never expected in a spec, but be safe.
+		std::replace(name.begin(), name.end(), L'|', L' ');
+		std::replace(spec.begin(), spec.end(), L'|', L' ');
+		_fileTypes.push_back({ name, spec });
+	}
 	return S_OK;
 }
 
@@ -549,6 +575,7 @@ HRESULT __stdcall CFilesSaveDialog::SetFileTypeIndex(UINT iFileType)
 #ifdef SYSTEMDIALOG
 	return _systemDialog->SetFileTypeIndex(iFileType);
 #endif
+	_fileTypeIndex = iFileType;
 	return S_OK;
 }
 
@@ -558,7 +585,7 @@ HRESULT __stdcall CFilesSaveDialog::GetFileTypeIndex(UINT* piFileType)
 #ifdef SYSTEMDIALOG
 	return _systemDialog->GetFileTypeIndex(piFileType);
 #endif
-	* piFileType = 1;
+	* piFileType = _fileTypeIndex == 0 ? 1 : _fileTypeIndex;
 	return S_OK;
 }
 
