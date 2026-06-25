@@ -221,6 +221,18 @@ namespace Files.App
 			if (Windows.Win32.PInvoke.IsIconic(new(WindowHandle)))
 				WinUIEx.WindowExtensions.Restore(Instance); // Restore window if minimized
 
+			// A dialog launch (save/open) must ALWAYS be shown and brought to the front, even if the
+			// window reports IsVisible, was hidden behind the caller, or another window has focus.
+			// Without this the dialog can open hidden and the caller waits forever (#doesn't show).
+			if (App.IsSaveDialog || App.IsOpenDialog)
+			{
+				appWindow?.Show();
+				if (Windows.Win32.PInvoke.IsIconic(new(WindowHandle)))
+					WinUIEx.WindowExtensions.Restore(Instance);
+				Activate();
+				Win32Helper.BringToForegroundEx(new(WindowHandle));
+			}
+
 			App.Logger.LogInformation(
 				"InitializeApplicationAsync completed. Root content: {RootContent}",
 				rootFrame.Content?.GetType().Name ?? "null");
