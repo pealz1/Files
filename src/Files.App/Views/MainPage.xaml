@@ -381,6 +381,12 @@
 			DataContext="{x:Bind ViewModel.SaveDialogViewModel, Mode=OneWay}"
 			Visibility="{x:Bind ViewModel.SaveDialogViewModel.IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
+		<uc:OpenDialogBar
+			x:Name="OpenDialogBarControl"
+			Grid.Row="3"
+			DataContext="{x:Bind ViewModel.OpenDialogViewModel, Mode=OneWay}"
+			Visibility="{x:Bind ViewModel.OpenDialogViewModel.IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
 		<VisualStateManager.VisualStateGroups>
 			<VisualStateGroup x:Name="SidebarWidthStates">
 				<VisualState x:Name="SmallSidebarWidthState">

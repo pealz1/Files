@@ -24,8 +24,25 @@ namespace Files.App
 		public static TaskCompletionSource? SplashScreenLoadingTCS { get; private set; }
 		public static string? OutputPath { get; set; }
 		public static bool IsSaveDialog { get; set; }
+		public static bool IsOpenDialog { get; set; }
 		public static Data.Models.SaveDialogRequest? SaveDialogRequest { get; set; }
-		public static bool SaveDialogCommitted { get; set; }
+
+		/// <summary>True once a dialog has committed (Save/Open clicked). Closing without this is a cancel.</summary>
+		public static bool DialogCommitted { get; set; }
+
+		/// <summary>
+		/// Name of the per-dialog completion event passed via -doneevent. Each dialog uses a unique
+		/// event so concurrent dialogs never wake each other (which previously crashed the host).
+		/// </summary>
+		public static string? DoneEventName { get; set; }
+
+		/// <summary>Signal the native dialog that the app finished (commit or cancel).</summary>
+		public static void SignalDialogDone()
+		{
+			var name = string.IsNullOrEmpty(DoneEventName) ? "FILEDIALOG" : DoneEventName;
+			using var handle = PInvoke.CreateEvent(null, false, false, name);
+			PInvoke.SetEvent(handle);
+		}
 
 		private static CommandBarFlyout? _LastOpenedFlyout;
 		public static CommandBarFlyout? LastOpenedFlyout
@@ -229,33 +246,12 @@ namespace Files.App
 
 			if (OutputPath is not null)
 			{
-				if (IsSaveDialog)
-				{
-					// Save mode commits ONLY via the explicit Save button (CommitSaveResult).
-					// Closing the window without a commit is a cancel: write nothing so the native
-					// side returns ERROR_CANCELLED instead of overwriting a highlighted file.
-					if (!SaveDialogCommitted)
-					{
-						using var cancelEvent = PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
-						PInvoke.SetEvent(cancelEvent);
-					}
-				}
-				else
-				{
-					var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
-					if (instance is null)
-						return;
-
-					var items = (instance.TabItemContent as ShellPanesPage)?.ActivePane?.SlimContentPage?.SelectedItems;
-					if (items is null)
-						return;
-
-					var results = items.Select(x => x.ItemPath).ToList();
-					System.IO.File.WriteAllLines(OutputPath, results);
-
-					using var eventHandle = PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
-					PInvoke.SetEvent(eventHandle);
-				}
+				// Both Save and Open dialogs commit ONLY via their explicit button (Save / Open).
+				// Closing the window without committing is a cancel: signal the native side so it
+				// returns ERROR_CANCELLED and writes nothing - never saving or uploading something
+				// the user did not confirm.
+				if (!DialogCommitted)
+					SignalDialogDone();
 			}
 
 			// Continue running the app on the background

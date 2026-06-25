@@ -83,6 +83,14 @@ namespace Files.App.Utils.CommandLine
 						command.Type = ParsedCommandType.FileTypeIndex;
 						break;
 
+					case string s when "OpenDialog".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.OpenDialog;
+						break;
+
+					case string s when "DoneEvent".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.DoneEvent;
+						break;
+
 					default: //case "Cmdless":
 						try
 						{

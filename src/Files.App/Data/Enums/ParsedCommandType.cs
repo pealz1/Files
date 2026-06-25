@@ -61,6 +61,16 @@ namespace Files.App.Data.Enums
 		/// <summary>
 		/// 1-based default file-type index for the Save dialog.
 		/// </summary>
-		FileTypeIndex
+		FileTypeIndex,
+
+		/// <summary>
+		/// Enter Open dialog mode (file picker for upload/open).
+		/// </summary>
+		OpenDialog,
+
+		/// <summary>
+		/// Name of the per-dialog completion event the app signals when the dialog finishes.
+		/// </summary>
+		DoneEvent
 	}
 }

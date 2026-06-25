@@ -332,8 +332,16 @@ namespace Files.App
 					rootFrame.Navigate(typeof(MainPage), paneNavigationArgs, new SuppressNavigationTransitionInfo());
 			}
 
-			// Save dialog detection (collect before the navigation switch)
+			// Dialog detection (collect before the navigation switch). Reset all dialog state on
+			// every activation so a previous dialog never bleeds into this one.
 			var saveDialogCmd = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.SaveDialog);
+			var openDialogCmd = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.OpenDialog);
+			App.IsSaveDialog = saveDialogCmd is not null;
+			App.IsOpenDialog = openDialogCmd is not null;
+			App.DialogCommitted = false;
+			App.DoneEventName = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.DoneEvent)?.Payload;
+			App.SaveDialogRequest = null;
+
 			if (saveDialogCmd is not null)
 			{
 				var suggested = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.SaveAs)?.Payload ?? string.Empty;
@@ -342,8 +350,6 @@ namespace Files.App
 				var types = Utils.SaveDialog.SaveDialogPathHelper.ParseFileTypes(filtersRaw);
 				var index = int.TryParse(indexRaw, out var n) ? n : 1;
 
-				App.IsSaveDialog = true;
-				App.SaveDialogCommitted = false;
 				App.SaveDialogRequest = new Data.Models.SaveDialogRequest(suggested, types, index);
 			}
 
@@ -407,7 +413,9 @@ namespace Files.App
 					case ParsedCommandType.SaveAs:
 					case ParsedCommandType.FileTypes:
 					case ParsedCommandType.FileTypeIndex:
-						// Consumed above into App.SaveDialogRequest; no navigation.
+					case ParsedCommandType.OpenDialog:
+					case ParsedCommandType.DoneEvent:
+						// Consumed above into App dialog state; no navigation.
 						break;
 				}
 			}

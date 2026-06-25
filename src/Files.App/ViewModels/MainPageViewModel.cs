@@ -32,6 +32,9 @@ namespace Files.App.ViewModels
 		/// <summary>Backing state for the docked Save dialog bar (only active when launched as a save dialog).</summary>
 		public SaveDialogViewModel SaveDialogViewModel { get; } = new();
 
+		/// <summary>Backing state for the docked Open dialog bar (only active when launched as an open/upload dialog).</summary>
+		public OpenDialogViewModel OpenDialogViewModel { get; } = new();
+
 		private readonly IContentPageContext context = Ioc.Default.GetRequiredService<IContentPageContext>();
 
 		// Properties

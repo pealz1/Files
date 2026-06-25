@@ -161,20 +161,27 @@ STDAPICALL CFilesOpenDialog::Show(HWND hwndOwner)
 
 	PWSTR pszPath = NULL;
 	WCHAR szBuf[MAX_PATH];
-	TCHAR args[1024] = { 0 };
+	TCHAR args[2048] = { 0 };
 	ExpandEnvironmentStringsW(L"%LOCALAPPDATA%\\Microsoft\\WindowsApps\\files-dev.exe", szBuf, MAX_PATH - 1);
 
-	HANDLE closeEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("FILEDIALOG"));
+	// Unique completion event per dialog instance (see SaveDialog for rationale): a shared global
+	// "FILEDIALOG" event causes cross-talk between concurrent dialogs and can crash the host.
+	std::wstring eventName = L"FILEDIALOG_";
+	{
+		size_t slash = _outputPath.find_last_of(L"\\/");
+		eventName += (slash == std::wstring::npos) ? _outputPath : _outputPath.substr(slash + 1);
+	}
+	HANDLE closeEvent = CreateEvent(NULL, FALSE, FALSE, eventName.c_str());
 
 	if (_initFolder && SUCCEEDED(_initFolder->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &pszPath)))
 	{
-		swprintf(args, _countof(args) - 1, L"\"%s\" -directory \"%s\" -outputpath \"%s\"", szBuf, pszPath, _outputPath.c_str());
+		swprintf(args, _countof(args) - 1, L"\"%s\" -directory \"%s\" -outputpath \"%s\" -opendialog -doneevent \"%s\"", szBuf, pszPath, _outputPath.c_str(), eventName.c_str());
 		wcout << L"Invoking: " << args << endl;
 		CoTaskMemFree(pszPath);
 	}
 	else
 	{
-		swprintf(args, _countof(args) - 1, L"\"%s\" -outputpath \"%s\"", szBuf, _outputPath.c_str());
+		swprintf(args, _countof(args) - 1, L"\"%s\" -outputpath \"%s\" -opendialog -doneevent \"%s\"", szBuf, _outputPath.c_str(), eventName.c_str());
 	}
 
 	std::wstring uriWithArgs = L"files-dev:?cmd=" + str2wstr(wstring_to_utf8_hex(args));
@@ -182,27 +189,47 @@ STDAPICALL CFilesOpenDialog::Show(HWND hwndOwner)
 	ShExecInfo.nShow = SW_SHOW;
 	ShellExecuteEx(&ShExecInfo);
 
+	// Grant the launched Files process the right to come to the foreground (see SaveDialog).
+	if (ShExecInfo.hProcess)
+	{
+		DWORD launchedPid = GetProcessId(ShExecInfo.hProcess);
+		if (launchedPid != 0)
+			AllowSetForegroundWindow(launchedPid);
+	}
+
 	if (hwndOwner)
 		EnableWindow(hwndOwner, FALSE);
 
-	MSG msg;
-	while (ShExecInfo.hProcess)
+	// Wait on BOTH the completion event and the app process (see SaveDialog for rationale).
+	// Never call __debugbreak() on an unexpected wait result - that would crash the host process.
+	if (ShExecInfo.hProcess)
 	{
-		switch (MsgWaitForMultipleObjectsEx(1, &closeEvent, INFINITE, QS_ALLINPUT, 0))
+		HANDLE waitHandles[2] = { closeEvent, ShExecInfo.hProcess };
+		MSG msg;
+		bool finished = false;
+		while (!finished)
 		{
-		case WAIT_OBJECT_0:
-			CloseHandle(ShExecInfo.hProcess);
-			ShExecInfo.hProcess = NULL;
-			break;
-		case WAIT_OBJECT_0 + 1:
-			while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+			switch (MsgWaitForMultipleObjectsEx(2, waitHandles, INFINITE, QS_ALLINPUT, 0))
 			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
+			case WAIT_OBJECT_0:      // app signaled completion
+			case WAIT_OBJECT_0 + 1:  // app process exited (closed/crashed)
+				finished = true;
+				break;
+			case WAIT_OBJECT_0 + 2:  // window messages
+				while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+				{
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
+				break;
+			default:                 // WAIT_FAILED or anything unexpected: bail, never crash the host
+				finished = true;
+				break;
 			}
-			continue;
-		default: __debugbreak();
 		}
+
+		CloseHandle(ShExecInfo.hProcess);
+		ShExecInfo.hProcess = NULL;
 	}
 
 	if (closeEvent)

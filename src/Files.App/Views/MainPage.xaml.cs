@@ -312,13 +312,33 @@ namespace Files.App.Views
 				ViewModel.SaveDialogViewModel.NewFolderRequested += SaveDialog_NewFolderRequested;
 				DispatcherQueue.TryEnqueue(() => SaveDialogBarControl.FocusFileName());
 			}
+
+			// Activate the docked Open bar when launched as an open/upload dialog.
+			if (App.IsOpenDialog)
+			{
+				ViewModel.OpenDialogViewModel.Activate();
+				ViewModel.OpenDialogViewModel.OpenRequested += OpenDialog_OpenRequested;
+				ViewModel.OpenDialogViewModel.CancelRequested += OpenDialog_CancelRequested;
+			}
+		}
+
+		private ShellPanesPage? GetActivePanesPage()
+		{
+			var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
+			return instance?.TabItemContent as ShellPanesPage;
 		}
 
 		private string GetActiveWorkingDirectory()
 		{
-			var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
-			var pane = (instance?.TabItemContent as ShellPanesPage)?.ActivePane;
-			return pane?.ShellViewModel?.WorkingDirectory ?? string.Empty;
+			return GetActivePanesPage()?.ActivePane?.ShellViewModel?.WorkingDirectory ?? string.Empty;
+		}
+
+		private System.Collections.Generic.List<string> GetActiveSelectionPaths()
+		{
+			var items = GetActivePanesPage()?.ActivePane?.SlimContentPage?.SelectedItems;
+			return items is null
+				? new System.Collections.Generic.List<string>()
+				: items.Select(x => x.ItemPath).ToList();
 		}
 
 		private async void SaveDialog_CommitRequested(object? sender, EventArgs e)
@@ -359,8 +379,8 @@ namespace Files.App.Views
 		private void SaveDialog_CancelRequested(object? sender, EventArgs e)
 		{
 			// Clean cancel: unblock the native side (empty result) and close.
-			App.SaveDialogCommitted = true;
-			SignalFileDialogEvent();
+			App.DialogCommitted = true;
+			App.SignalDialogDone();
 			MainWindow.Instance.Close();
 		}
 
@@ -376,18 +396,47 @@ namespace Files.App.Views
 			if (App.OutputPath is not null)
 			{
 				System.IO.File.WriteAllLines(App.OutputPath, [fullPath, $"index={typeIndex}"]);
-				App.SaveDialogCommitted = true;
+				App.DialogCommitted = true;
 			}
 
-			SignalFileDialogEvent();
+			App.SignalDialogDone();
 			App.OutputPath = null; // ensure Window_Closed does not re-handle
 			MainWindow.Instance.Close();
 		}
 
-		private static void SignalFileDialogEvent()
+		private async void OpenDialog_OpenRequested(object? sender, EventArgs e)
 		{
-			using var eventHandle = Windows.Win32.PInvoke.CreateEvent(null, false, false, "FILEDIALOG");
-			Windows.Win32.PInvoke.SetEvent(eventHandle);
+			var paths = GetActiveSelectionPaths();
+			if (paths.Count == 0)
+			{
+				var hint = new ContentDialog
+				{
+					Title = "No file selected",
+					Content = "Select one or more files in the list, then click Open.",
+					CloseButtonText = "OK",
+					XamlRoot = XamlRoot,
+				};
+				await hint.ShowAsync();
+				return;
+			}
+
+			if (App.OutputPath is not null)
+			{
+				System.IO.File.WriteAllLines(App.OutputPath, paths);
+				App.DialogCommitted = true;
+			}
+
+			App.SignalDialogDone();
+			App.OutputPath = null;
+			MainWindow.Instance.Close();
+		}
+
+		private void OpenDialog_CancelRequested(object? sender, EventArgs e)
+		{
+			// Clean cancel: unblock the native side (empty result) and close.
+			App.DialogCommitted = true;
+			App.SignalDialogDone();
+			MainWindow.Instance.Close();
 		}
 
 		private void PreviewPane_Loaded(object sender, RoutedEventArgs e)

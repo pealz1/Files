@@ -441,7 +441,15 @@ HRESULT __stdcall CFilesSaveDialog::Show(HWND hwndOwner)
 	TCHAR args[8192] = { 0 };
 	ExpandEnvironmentStringsW(L"%LOCALAPPDATA%\\Microsoft\\WindowsApps\\files-dev.exe", szBuf, MAX_PATH - 1);
 
-	HANDLE closeEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("FILEDIALOG"));
+	// Unique completion event per dialog instance. A single global "FILEDIALOG" event is shared
+	// by every concurrent dialog, so signaling it can wake the wrong waiter (cross-process
+	// cross-talk) and crash the host. Derive a unique name from the per-dialog temp output path.
+	std::wstring eventName = L"FILEDIALOG_";
+	{
+		size_t slash = _outputPath.find_last_of(L"\\/");
+		eventName += (slash == std::wstring::npos) ? _outputPath : _outputPath.substr(slash + 1);
+	}
+	HANDLE closeEvent = CreateEvent(NULL, FALSE, FALSE, eventName.c_str());
 
 	// Build the file-types payload: "Name1|*.png|Name2|*.*"
 	std::wstring fileTypesArg;
@@ -456,16 +464,16 @@ HRESULT __stdcall CFilesSaveDialog::Show(HWND hwndOwner)
 	if (_initFolder && SUCCEEDED(_initFolder->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &pszPath)))
 	{
 		swprintf(args, _countof(args) - 1,
-			L"\"%s\" -directory \"%s\" -outputpath \"%s\" -savedialog -saveas \"%s\" -filetypes \"%s\" -filetypeindex %u",
-			szBuf, pszPath, _outputPath.c_str(), _initName.c_str(), fileTypesArg.c_str(), typeIndex);
+			L"\"%s\" -directory \"%s\" -outputpath \"%s\" -savedialog -saveas \"%s\" -filetypes \"%s\" -filetypeindex %u -doneevent \"%s\"",
+			szBuf, pszPath, _outputPath.c_str(), _initName.c_str(), fileTypesArg.c_str(), typeIndex, eventName.c_str());
 		wcout << L"Invoking: " << args << endl;
 		CoTaskMemFree(pszPath);
 	}
 	else
 	{
 		swprintf(args, _countof(args) - 1,
-			L"\"%s\" -outputpath \"%s\" -savedialog -saveas \"%s\" -filetypes \"%s\" -filetypeindex %u",
-			szBuf, _outputPath.c_str(), _initName.c_str(), fileTypesArg.c_str(), typeIndex);
+			L"\"%s\" -outputpath \"%s\" -savedialog -saveas \"%s\" -filetypes \"%s\" -filetypeindex %u -doneevent \"%s\"",
+			szBuf, _outputPath.c_str(), _initName.c_str(), fileTypesArg.c_str(), typeIndex, eventName.c_str());
 	}
 
 	std::wstring uriWithArgs = L"files-dev:?cmd=" + str2wstr(wstring_to_utf8_hex(args));
@@ -473,27 +481,49 @@ HRESULT __stdcall CFilesSaveDialog::Show(HWND hwndOwner)
 	ShExecInfo.nShow = SW_SHOW;
 	ShellExecuteEx(&ShExecInfo);
 
+	// Grant the launched Files process the right to come to the foreground. Without this the
+	// dialog window can open hidden behind the caller (Windows blocks foreground-stealing).
+	if (ShExecInfo.hProcess)
+	{
+		DWORD launchedPid = GetProcessId(ShExecInfo.hProcess);
+		if (launchedPid != 0)
+			AllowSetForegroundWindow(launchedPid);
+	}
+
 	if (hwndOwner)
 		EnableWindow(hwndOwner, FALSE);
 
-	MSG msg;
-	while (ShExecInfo.hProcess)
+	// Wait on BOTH the completion event and the app process. Waiting on the process means a
+	// crash/exit of the app no longer hangs the caller forever. An unexpected wait result no
+	// longer calls __debugbreak() (which would crash the host process such as Discord).
+	if (ShExecInfo.hProcess)
 	{
-		switch (MsgWaitForMultipleObjectsEx(1, &closeEvent, INFINITE, QS_ALLINPUT, 0))
+		HANDLE waitHandles[2] = { closeEvent, ShExecInfo.hProcess };
+		MSG msg;
+		bool finished = false;
+		while (!finished)
 		{
-		case WAIT_OBJECT_0:
-			CloseHandle(ShExecInfo.hProcess);
-			ShExecInfo.hProcess = NULL;
-			break;
-		case WAIT_OBJECT_0 + 1:
-			while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+			switch (MsgWaitForMultipleObjectsEx(2, waitHandles, INFINITE, QS_ALLINPUT, 0))
 			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
+			case WAIT_OBJECT_0:      // app signaled completion
+			case WAIT_OBJECT_0 + 1:  // app process exited (closed/crashed)
+				finished = true;
+				break;
+			case WAIT_OBJECT_0 + 2:  // window messages
+				while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+				{
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
+				break;
+			default:                 // WAIT_FAILED or anything unexpected: bail, never crash the host
+				finished = true;
+				break;
 			}
-			continue;
-		default: __debugbreak();
 		}
+
+		CloseHandle(ShExecInfo.hProcess);
+		ShExecInfo.hProcess = NULL;
 	}
 
 	if (closeEvent)

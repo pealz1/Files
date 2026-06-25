@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--  Copyright (c) Files Community. Licensed under the MIT License.  -->
+<UserControl
+	x:Class="Files.App.UserControls.OpenDialogBar"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	mc:Ignorable="d">
+
+	<Border
+		Padding="12,8"
+		Background="{ThemeResource App.Theme.BackgroundBrush}"
+		BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+		BorderThickness="0,1,0,0">
+		<Grid ColumnSpacing="8">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*" />
+				<ColumnDefinition Width="Auto" />
+				<ColumnDefinition Width="Auto" />
+			</Grid.ColumnDefinitions>
+
+			<TextBlock
+				Grid.Column="0"
+				VerticalAlignment="Center"
+				Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+				Text="Select one or more files, then click Open." />
+
+			<Button
+				Grid.Column="1"
+				VerticalAlignment="Center"
+				Command="{Binding OpenCommand}"
+				Content="Open"
+				Style="{ThemeResource AccentButtonStyle}" />
+
+			<Button
+				Grid.Column="2"
+				VerticalAlignment="Center"
+				Command="{Binding CancelCommand}"
+				Content="Cancel" />
+		</Grid>
+	</Border>
+</UserControl>
