@@ -87,6 +87,10 @@ namespace Files.App.Utils.CommandLine
 						command.Type = ParsedCommandType.OpenDialog;
 						break;
 
+					case string s when "PickFolders".Equals(s, StringComparison.OrdinalIgnoreCase):
+						command.Type = ParsedCommandType.PickFolders;
+						break;
+
 					case string s when "DoneEvent".Equals(s, StringComparison.OrdinalIgnoreCase):
 						command.Type = ParsedCommandType.DoneEvent;
 						break;

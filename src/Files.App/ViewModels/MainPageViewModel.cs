@@ -245,6 +245,11 @@ namespace Files.App.ViewModels
 				ignoreStartupSettings = mainPageNavigationArguments.IgnoreStartupSettings;
 			}
 
+			// A save/open dialog must show ONLY its target folder - never restore the user's
+			// browsing tabs on top of it (that looked "weird and buggy" and slowed the dialog).
+			if (App.IsSaveDialog || App.IsOpenDialog)
+				ignoreStartupSettings = true;
+
 			if (parameter is null || (parameter is string eventStr && string.IsNullOrEmpty(eventStr)))
 			{
 				try

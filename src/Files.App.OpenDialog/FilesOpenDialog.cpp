@@ -173,15 +173,19 @@ STDAPICALL CFilesOpenDialog::Show(HWND hwndOwner)
 	}
 	HANDLE closeEvent = CreateEvent(NULL, FALSE, FALSE, eventName.c_str());
 
+	// Folder-picker mode: when the caller set FOS_PICKFOLDERS, tell the app so the Open bar
+	// returns the chosen folder instead of a file (e.g. "select download location").
+	const wchar_t* pickFoldersArg = (_fos & FOS_PICKFOLDERS) ? L" -pickfolders" : L"";
+
 	if (_initFolder && SUCCEEDED(_initFolder->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &pszPath)))
 	{
-		swprintf(args, _countof(args) - 1, L"\"%s\" -directory \"%s\" -outputpath \"%s\" -opendialog -doneevent \"%s\"", szBuf, pszPath, _outputPath.c_str(), eventName.c_str());
+		swprintf(args, _countof(args) - 1, L"\"%s\" -directory \"%s\" -outputpath \"%s\" -opendialog%s -doneevent \"%s\"", szBuf, pszPath, _outputPath.c_str(), pickFoldersArg, eventName.c_str());
 		wcout << L"Invoking: " << args << endl;
 		CoTaskMemFree(pszPath);
 	}
 	else
 	{
-		swprintf(args, _countof(args) - 1, L"\"%s\" -outputpath \"%s\" -opendialog -doneevent \"%s\"", szBuf, _outputPath.c_str(), eventName.c_str());
+		swprintf(args, _countof(args) - 1, L"\"%s\" -outputpath \"%s\" -opendialog%s -doneevent \"%s\"", szBuf, _outputPath.c_str(), pickFoldersArg, eventName.c_str());
 	}
 
 	std::wstring uriWithArgs = L"files-dev:?cmd=" + str2wstr(wstring_to_utf8_hex(args));

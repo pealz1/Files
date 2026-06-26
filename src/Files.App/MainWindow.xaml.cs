@@ -350,6 +350,7 @@ namespace Files.App
 			var openDialogCmd = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.OpenDialog);
 			App.IsSaveDialog = saveDialogCmd is not null;
 			App.IsOpenDialog = openDialogCmd is not null;
+			App.IsPickFolders = parsedCommands.Any(x => x.Type == ParsedCommandType.PickFolders);
 			App.DialogCommitted = false;
 			App.DoneEventName = parsedCommands.FirstOrDefault(x => x.Type == ParsedCommandType.DoneEvent)?.Payload;
 			App.SaveDialogRequest = null;
@@ -426,6 +427,7 @@ namespace Files.App
 					case ParsedCommandType.FileTypes:
 					case ParsedCommandType.FileTypeIndex:
 					case ParsedCommandType.OpenDialog:
+					case ParsedCommandType.PickFolders:
 					case ParsedCommandType.DoneEvent:
 						// Consumed above into App dialog state; no navigation.
 						break;

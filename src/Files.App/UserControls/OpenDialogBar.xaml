@@ -24,13 +24,13 @@
 				Grid.Column="0"
 				VerticalAlignment="Center"
 				Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-				Text="Select one or more files, then click Open." />
+				Text="{Binding HintText}" />
 
 			<Button
 				Grid.Column="1"
 				VerticalAlignment="Center"
 				Command="{Binding OpenCommand}"
-				Content="Open"
+				Content="{Binding PrimaryButtonText}"
 				Style="{ThemeResource AccentButtonStyle}" />
 
 			<Button

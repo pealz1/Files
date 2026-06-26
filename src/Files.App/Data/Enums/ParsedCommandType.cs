@@ -69,6 +69,11 @@ namespace Files.App.Data.Enums
 		OpenDialog,
 
 		/// <summary>
+		/// Open dialog should pick a folder instead of files (FOS_PICKFOLDERS).
+		/// </summary>
+		PickFolders,
+
+		/// <summary>
 		/// Name of the per-dialog completion event the app signals when the dialog finishes.
 		/// </summary>
 		DoneEvent

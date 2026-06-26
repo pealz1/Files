@@ -25,6 +25,7 @@ namespace Files.App
 		public static string? OutputPath { get; set; }
 		public static bool IsSaveDialog { get; set; }
 		public static bool IsOpenDialog { get; set; }
+		public static bool IsPickFolders { get; set; }
 		public static Data.Models.SaveDialogRequest? SaveDialogRequest { get; set; }
 
 		/// <summary>True once a dialog has committed (Save/Open clicked). Closing without this is a cancel.</summary>
@@ -238,11 +239,18 @@ namespace Files.App
 				return;
 			}
 
-			// Save the current tab list in case it was overwriten by another instance
-			if (userSettingsService.GeneralSettingsService.ContinueLastSessionOnStartUp || userSettingsService.AppSettingsService.RestoreTabsOnStartup)
-				AppLifecycleHelper.SaveSessionTabs();
-			else
-				await commandManager.CloseAllTabs.ExecuteAsync();
+			// Persist the session only for real browsing windows. A dialog (save/open) shows a
+			// single throwaway folder tab; saving it as the session would clobber the user's real
+			// tabs, and closing all tabs is pointless for a window that is going away anyway.
+			var isDialogWindow = IsSaveDialog || IsOpenDialog || OutputPath is not null;
+			if (!isDialogWindow)
+			{
+				// Save the current tab list in case it was overwriten by another instance
+				if (userSettingsService.GeneralSettingsService.ContinueLastSessionOnStartUp || userSettingsService.AppSettingsService.RestoreTabsOnStartup)
+					AppLifecycleHelper.SaveSessionTabs();
+				else
+					await commandManager.CloseAllTabs.ExecuteAsync();
+			}
 
 			if (OutputPath is not null)
 			{

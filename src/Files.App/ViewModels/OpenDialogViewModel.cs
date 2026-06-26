@@ -16,6 +16,17 @@ namespace Files.App.ViewModels
 		[ObservableProperty]
 		private bool isActive;
 
+		[ObservableProperty]
+		private bool isPickFolders;
+
+		/// <summary>Accent button label: "Open" for files, "Select Folder" for folder-pick mode.</summary>
+		public string PrimaryButtonText => IsPickFolders ? "Select Folder" : "Open";
+
+		/// <summary>Hint shown in the bar, adapted to the mode.</summary>
+		public string HintText => IsPickFolders
+			? "Open the folder you want, then click Select Folder."
+			: "Select one or more files, then click Open.";
+
 		public event EventHandler? OpenRequested;
 		public event EventHandler? CancelRequested;
 
@@ -25,6 +36,16 @@ namespace Files.App.ViewModels
 		[RelayCommand]
 		private void Cancel() => CancelRequested?.Invoke(this, EventArgs.Empty);
 
-		public void Activate() => IsActive = true;
+		public void Activate(bool pickFolders)
+		{
+			IsPickFolders = pickFolders;
+			IsActive = true;
+		}
+
+		partial void OnIsPickFoldersChanged(bool value)
+		{
+			OnPropertyChanged(nameof(PrimaryButtonText));
+			OnPropertyChanged(nameof(HintText));
+		}
 	}
 }

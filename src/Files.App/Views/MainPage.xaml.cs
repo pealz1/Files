@@ -316,7 +316,7 @@ namespace Files.App.Views
 			// Activate the docked Open bar when launched as an open/upload dialog.
 			if (App.IsOpenDialog)
 			{
-				ViewModel.OpenDialogViewModel.Activate();
+				ViewModel.OpenDialogViewModel.Activate(App.IsPickFolders);
 				ViewModel.OpenDialogViewModel.OpenRequested += OpenDialog_OpenRequested;
 				ViewModel.OpenDialogViewModel.CancelRequested += OpenDialog_CancelRequested;
 			}
@@ -339,6 +339,23 @@ namespace Files.App.Views
 			return items is null
 				? new System.Collections.Generic.List<string>()
 				: items.Select(x => x.ItemPath).ToList();
+		}
+
+		private System.Collections.Generic.List<string> GetFolderResult()
+		{
+			// Prefer any selected folders; otherwise return the folder currently being viewed.
+			var selectedFolders = GetActivePanesPage()?.ActivePane?.SlimContentPage?.SelectedItems?
+				.Where(x => x.IsFolder)
+				.Select(x => x.ItemPath)
+				.ToList();
+
+			if (selectedFolders is { Count: > 0 })
+				return selectedFolders;
+
+			var folder = GetActiveWorkingDirectory();
+			return string.IsNullOrEmpty(folder)
+				? new System.Collections.Generic.List<string>()
+				: new System.Collections.Generic.List<string> { folder };
 		}
 
 		private async void SaveDialog_CommitRequested(object? sender, EventArgs e)
@@ -406,13 +423,15 @@ namespace Files.App.Views
 
 		private async void OpenDialog_OpenRequested(object? sender, EventArgs e)
 		{
-			var paths = GetActiveSelectionPaths();
+			var paths = App.IsPickFolders ? GetFolderResult() : GetActiveSelectionPaths();
 			if (paths.Count == 0)
 			{
 				var hint = new ContentDialog
 				{
-					Title = "No file selected",
-					Content = "Select one or more files in the list, then click Open.",
+					Title = App.IsPickFolders ? "No folder available" : "No file selected",
+					Content = App.IsPickFolders
+						? "Open the folder you want to choose, then click Select Folder."
+						: "Select one or more files in the list, then click Open.",
 					CloseButtonText = "OK",
 					XamlRoot = XamlRoot,
 				};
