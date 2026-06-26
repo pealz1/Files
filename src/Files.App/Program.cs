@@ -121,10 +121,12 @@ namespace Files.App
 			}
 
 			var commandLineArgs = GetCommandLineArgs(activatedArgs);
+			var isDialogActivation = false;
 
 			if (commandLineArgs is not null)
 			{
 				var parsedCommands = CommandLineParser.ParseUntrustedCommands(commandLineArgs);
+				isDialogActivation = parsedCommands?.Any(x => x.Type == ParsedCommandType.OutputPath) ?? false;
 
 				if (parsedCommands is not null)
 				{
@@ -215,7 +217,12 @@ namespace Files.App
 			if (currentInstance.IsCurrent)
 				currentInstance.Activated += OnActivated;
 
-			ApplicationData.Current.LocalSettings.Values["INSTANCE_ACTIVE"] = -Environment.ProcessId;
+			// A dialog (save/open) is a throwaway window. It must NOT become INSTANCE_ACTIVE, or the
+			// next launch / "open in existing instance" / next dialog would redirect into this dialog
+			// instead of the user's real browsing window - which caused concurrent dialogs to reuse
+			// each other's instance and hang (the second caller never gets its completion event).
+			if (!isDialogActivation)
+				ApplicationData.Current.LocalSettings.Values["INSTANCE_ACTIVE"] = -Environment.ProcessId;
 
 			Application.Start((p) =>
 			{
