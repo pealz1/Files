@@ -34,7 +34,14 @@ namespace Files.App.Views.Shells
 			}
 		}
 
-		public ModernShellPage() : base(new CurrentInstanceViewModel())
+		// Save/open dialogs default to a thumbnail-rich grid so image previews show without zooming
+		// (a runtime-only fixed layout that does NOT clobber the user's saved per-folder preference).
+		private static CurrentInstanceViewModel CreateInstanceViewModel()
+			=> (App.IsOpenDialog || App.IsSaveDialog)
+				? new CurrentInstanceViewModel(FolderLayoutModes.GridView)
+				: new CurrentInstanceViewModel();
+
+		public ModernShellPage() : base(CreateInstanceViewModel())
 		{
 			InitializeComponent();
 
@@ -80,6 +87,12 @@ namespace Files.App.Views.Shells
 
 		protected override void ShellPage_NavigationRequested(object sender, PathNavigationEventArgs e)
 		{
+			if (e.ItemPath == "FilesPro")
+			{
+				NavigateToFilesProDashboard();
+				return;
+			}
+
 			ItemDisplayFrame.Navigate(InstanceViewModel.FolderSettings.GetLayoutType(e.ItemPath), new NavigationArguments()
 			{
 				NavPathParam = e.ItemPath,
@@ -101,6 +114,10 @@ namespace Files.App.Views.Shells
 			else if (NavParams.NavPath == "Settings")
 			{
 				NavigateToSettings(NavParams?.SelectItem);
+			}
+			else if (NavParams.NavPath == "FilesPro")
+			{
+				NavigateToFilesProDashboard();
 			}
 			else
 			{
@@ -286,9 +303,30 @@ namespace Files.App.Views.Shells
 				new SuppressNavigationTransitionInfo());
 		}
 
+		public void NavigateToFilesProDashboard()
+		{
+			ItemDisplayFrame.Navigate(
+				typeof(FilesProDashboardPage),
+				new NavigationArguments()
+				{
+					NavPathParam = "FilesPro",
+					AssociatedTabInstance = this
+				},
+				new SuppressNavigationTransitionInfo());
+		}
+
 		public override void NavigateToPath(string? navigationPath, Type? sourcePageType, NavigationArguments? navArgs = null)
 		{
 			ShellViewModel.FilesAndFoldersFilter = null;
+
+			if (TryOpenFileNavigationTarget(navigationPath))
+				return;
+
+			if (navigationPath == "FilesPro" && sourcePageType is null && navArgs is null)
+			{
+				NavigateToFilesProDashboard();
+				return;
+			}
 
 			if (sourcePageType is null && !string.IsNullOrEmpty(navigationPath))
 				sourcePageType = InstanceViewModel.FolderSettings.GetLayoutType(navigationPath);

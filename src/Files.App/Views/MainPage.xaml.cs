@@ -310,6 +310,8 @@ namespace Files.App.Views
 				ViewModel.SaveDialogViewModel.CommitRequested += SaveDialog_CommitRequested;
 				ViewModel.SaveDialogViewModel.CancelRequested += SaveDialog_CancelRequested;
 				ViewModel.SaveDialogViewModel.NewFolderRequested += SaveDialog_NewFolderRequested;
+				// Double-clicking an existing file fills its name into the box (to overwrite).
+				App.SaveDialogFillFileName = name => ViewModel.SaveDialogViewModel.FileName = name;
 				DispatcherQueue.TryEnqueue(() => SaveDialogBarControl.FocusFileName());
 			}
 
@@ -319,6 +321,9 @@ namespace Files.App.Views
 				ViewModel.OpenDialogViewModel.Activate(App.IsPickFolders);
 				ViewModel.OpenDialogViewModel.OpenRequested += OpenDialog_OpenRequested;
 				ViewModel.OpenDialogViewModel.CancelRequested += OpenDialog_CancelRequested;
+				// Double-clicking / pressing Enter on a file commits it (uploads) instead of launching it.
+				if (!App.IsPickFolders)
+					App.OpenDialogCommitSelection = () => OpenDialog_OpenRequested(this, EventArgs.Empty);
 			}
 		}
 

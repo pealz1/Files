@@ -37,6 +37,13 @@ namespace Files.App
 		/// </summary>
 		public static string? DoneEventName { get; set; }
 
+		/// <summary>Open dialog: commit the current file selection (set by MainPage). Invoked when the user
+		/// double-clicks/opens a file so it commits to the dialog instead of launching it in another app.</summary>
+		public static Action? OpenDialogCommitSelection { get; set; }
+
+		/// <summary>Save dialog: put a double-clicked file's name into the File name box (set by MainPage).</summary>
+		public static Action<string>? SaveDialogFillFileName { get; set; }
+
 		/// <summary>Signal the native dialog that the app finished (commit or cancel).</summary>
 		public static void SignalDialogDone()
 		{

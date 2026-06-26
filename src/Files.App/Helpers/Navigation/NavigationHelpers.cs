@@ -220,6 +220,8 @@ namespace Files.App.Helpers
 			else if (path == "Settings")
 				// Settings uses its own animated icon in the sidebar, so we intentionally skip a file-based icon here.
 				imageSource = null;
+			else if (path == "FilesPro")
+				imageSource = null;
 			else if (WSLDistroManager.TryGetDistro(path, out WslDistroItem? wslDistro) && path.Equals(wslDistro.Path))
 				imageSource = new BitmapImage(wslDistro.Icon);
 			else
@@ -265,6 +267,12 @@ namespace Files.App.Helpers
 				tabLocationHeader = Strings.Settings.GetLocalizedResource();
 				iconSource = new FontIconSource() { Glyph = "\uE713" };
 				toolTipText = Strings.Settings.GetLocalizedResource();
+			}
+			else if (currentPath == "FilesPro")
+			{
+				tabLocationHeader = "Files Pro";
+				iconSource = new FontIconSource() { Glyph = "\uE8B7" };
+				toolTipText = "Files Pro";
 			}
 			else if (currentPath.Equals(Constants.UserEnvironmentPaths.DesktopPath, StringComparison.OrdinalIgnoreCase))
 				tabLocationHeader = Strings.Desktop.GetLocalizedResource();
@@ -409,6 +417,24 @@ namespace Files.App.Helpers
 			var forceOpenInNewTab = false;
 			var selectedItems = associatedInstance.SlimContentPage.SelectedItems.ToList();
 			var opened = false;
+
+			// In a save/open dialog, "opening" a FILE (double-click / Enter) must commit it to the dialog,
+			// not launch it in another app. Folders still navigate. This is what makes double-clicking an
+			// image to set e.g. a Discord avatar actually upload it instead of opening Photos.
+			if (selectedItems.Count > 0 && selectedItems.All(x => x.PrimaryItemAttribute == StorageItemTypes.File))
+			{
+				if (App.IsOpenDialog && App.OpenDialogCommitSelection is not null)
+				{
+					App.OpenDialogCommitSelection();
+					return;
+				}
+
+				if (App.IsSaveDialog && App.SaveDialogFillFileName is not null)
+				{
+					App.SaveDialogFillFileName(selectedItems[0].Name);
+					return;
+				}
+			}
 
 			// If multiple files are selected, open them together
 			if (!openViaApplicationPicker &&
