@@ -1,0 +1,28 @@
+Visual Studio Installer 4.4.38+f809381b5a
+© Microsoft Corporation. All rights reserved.
+
+  --in                   The path to the response file to use for the operation
+
+  --noUpdateInstaller    Prevents the installer from automatically updating if
+                         an update is required
+
+  --cache                Specifies that payloads should be cached on the system
+
+  --nocache              Specifies that payloads should be deleted from the
+                         system
+
+  --noWeb                Prevents the installer from downloading any payloads
+                         over HTTP
+
+  --force                Forces any running, blocking exes to shutdown before
+                         starting the operation
+
+  --theme                Changes the color theme of the installer. The options
+                         are Light, Dark and HighContrast
+
+  --locale               Sets the UI locale
+
+  --help                 Display this help screen.
+
+  --version              Display version information.
+

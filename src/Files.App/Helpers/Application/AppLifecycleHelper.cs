@@ -2,7 +2,13 @@
 // Licensed under the MIT License.
 
 using Files.App.Helpers.Application;
+using Files.App.CommandPalette;
+using Files.App.Cleanup;
+using Files.App.FileOperations;
+using Files.App.Indexing;
+using Files.App.ProjectDiscovery;
 using Files.App.Services.SizeProvider;
+using Files.App.StorageAnalysis;
 using Files.App.Utils.Logger;
 using Files.App.ViewModels.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -265,6 +271,13 @@ namespace Files.App.Helpers
 					.AddSingleton<IStorageArchiveService, StorageArchiveService>()
 					.AddSingleton<IStorageSecurityService, StorageSecurityService>()
 					.AddSingleton<IWindowsCompatibilityService, WindowsCompatibilityService>()
+					.AddSingleton<IProjectDiscoveryService, ProjectDiscoveryService>()
+					.AddSingleton<ICleanupPlanService, CleanupPlanService>()
+					.AddSingleton<IStorageScanService, StorageScanService>()
+					.AddSingleton<IFileIndexService, FileIndexService>()
+					.AddSingleton<IEverythingSearchService, EverythingSearchService>()
+					.AddSingleton<IFilesProCopyQueueService, FilesProCopyQueueService>()
+					.AddSingleton<ICommandPaletteService, CommandPaletteService>()
 					// ViewModels
 					.AddSingleton<MainPageViewModel>()
 					.AddSingleton<InfoPaneViewModel>()
@@ -281,6 +294,7 @@ namespace Files.App.Helpers
 					.AddSingleton<FileTagsWidgetViewModel>()
 					.AddSingleton<RecentFilesWidgetViewModel>()
 					.AddSingleton<ReleaseNotesViewModel>()
+					.AddTransient<FilesProDashboardViewModel>()
 					// Utilities
 					.AddSingleton<QuickAccessManager>()
 					.AddSingleton<StorageHistoryWrapper>()

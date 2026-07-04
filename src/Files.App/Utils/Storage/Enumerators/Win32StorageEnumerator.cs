@@ -15,6 +15,7 @@ namespace Files.App.Utils.Storage
 		private static readonly IStorageCacheService fileListCache = Ioc.Default.GetRequiredService<IStorageCacheService>();
 
 		private static readonly string folderTypeTextLocalized = Strings.Folder.GetLocalizedResource();
+		private const string ZoneIdentifierAlternateStreamName = "Zone.Identifier";
 
 		private static readonly IIconCacheService iconCacheService = Ioc.Default.GetRequiredService<IIconCacheService>();
 
@@ -110,21 +111,28 @@ namespace Files.App.Utils.Storage
 		private static IEnumerable<ListedItem> EnumAdsForPath(string itemPath, ListedItem main)
 		{
 			foreach (var ads in Win32Helper.GetAlternateStreams(itemPath))
+			{
+				if (!ShouldShowAlternateStream(ads))
+					continue;
+
 				yield return GetAlternateStream(ads, main);
+			}
 		}
+
+		public static bool ShouldShowAlternateStream((string Name, long Size) ads)
+			=> !NormalizeAlternateStreamName(ads.Name).Equals(ZoneIdentifierAlternateStreamName, StringComparison.OrdinalIgnoreCase);
 
 		public static ListedItem GetAlternateStream((string Name, long Size) ads, ListedItem main)
 		{
+			string adsName = NormalizeAlternateStreamName(ads.Name);
 			string itemType = Strings.File.GetLocalizedResource();
 			string itemFileExtension = null;
 
-			if (ads.Name.Contains('.'))
+			if (adsName.Contains('.'))
 			{
-				itemFileExtension = Path.GetExtension(ads.Name);
+				itemFileExtension = Path.GetExtension(adsName);
 				itemType = itemFileExtension.Trim('.') + " " + itemType;
 			}
-
-			string adsName = ads.Name.Substring(1, ads.Name.Length - 7); // Remove ":" and ":$DATA"
 
 			return new AlternateStreamItem()
 			{
@@ -143,6 +151,17 @@ namespace Files.App.Utils.Storage
 				FileSize = ads.Size.ToSizeString(),
 				FileSizeBytes = ads.Size
 			};
+		}
+
+		private static string NormalizeAlternateStreamName(string name)
+		{
+			if (name.StartsWith(':'))
+				name = name[1..];
+
+			if (name.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase))
+				name = name[..^6];
+
+			return name;
 		}
 
 		public static async Task<ListedItem> GetFolder(

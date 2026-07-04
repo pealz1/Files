@@ -17,5 +17,6 @@ namespace Files.App.Data.Contexts
 		SearchResults,
 		ReleaseNotes,
 		Settings,
+		FilesPro,
 	}
 }

@@ -116,6 +116,15 @@ namespace Files.App.ViewModels.Settings
 			if (IsSetAsOpenFileDialog == DetectIsSetAsOpenFileDialog())
 				return;
 
+			if (!IsOpenFileDialogIntegrationAvailable)
+			{
+				IsSetAsOpenFileDialog = DetectIsSetAsOpenFileDialog();
+				await DialogDisplayHelper.ShowDialogAsync(
+					Strings.SettingsSetAsOpenDialog.GetLocalizedResource(),
+					"Open and save dialog integration requires the native FilesOpenDialog binaries to be packaged first.");
+				return;
+			}
+
 			var destFolder = Path.Combine(ApplicationData.Current.LocalFolder.Path, "FilesOpenDialog");
 			Directory.CreateDirectory(destFolder);
 			foreach (var file in Directory.GetFiles(Path.Combine(Package.Current.InstalledLocation.Path, "Assets", "FilesOpenDialog")))
@@ -129,21 +138,17 @@ namespace Files.App.ViewModels.Settings
 
 			try
 			{
-				using (var regProc = Process.Start("regsvr32.exe", @$"/s /n {(!IsSetAsOpenFileDialog ? "/u" : "")} /i:user ""{Path.Combine(destFolder, "Files.App.OpenDialog32.dll")}"""))
-					await regProc.WaitForExitAsync();
-				using (var regProc = Process.Start("regsvr32.exe", @$"/s /n {(!IsSetAsOpenFileDialog ? "/u" : "")} /i:user ""{Path.Combine(destFolder, "Files.App.OpenDialog64.dll")}"""))
-					await regProc.WaitForExitAsync();
-				using (var regProc = Process.Start("regsvr32.exe", @$"/s /n {(!IsSetAsOpenFileDialog ? "/u" : "")} /i:user ""{Path.Combine(destFolder, "Files.App.OpenDialogARM64.dll")}"""))
-					await regProc.WaitForExitAsync();
-				using (var regProc = Process.Start("regsvr32.exe", @$"/s /n {(!IsSetAsOpenFileDialog ? "/u" : "")} /i:user ""{Path.Combine(destFolder, "Files.App.SaveDialog32.dll")}"""))
-					await regProc.WaitForExitAsync();
-				using (var regProc = Process.Start("regsvr32.exe", @$"/s /n {(!IsSetAsOpenFileDialog ? "/u" : "")} /i:user ""{Path.Combine(destFolder, "Files.App.SaveDialog64.dll")}"""))
-					await regProc.WaitForExitAsync();
-				using (var regProc = Process.Start("regsvr32.exe", @$"/s /n {(!IsSetAsOpenFileDialog ? "/u" : "")} /i:user ""{Path.Combine(destFolder, "Files.App.SaveDialogARM64.dll")}"""))
-					await regProc.WaitForExitAsync();
+				var unregister = !IsSetAsOpenFileDialog;
+				await RegisterComServerAsync(Path.Combine(destFolder, "Files.App.OpenDialog32.dll"), unregister);
+				await RegisterComServerAsync(Path.Combine(destFolder, "Files.App.OpenDialog64.dll"), unregister);
+				await RegisterComServerAsync(Path.Combine(destFolder, "Files.App.SaveDialog32.dll"), unregister);
+				await RegisterComServerAsync(Path.Combine(destFolder, "Files.App.SaveDialog64.dll"), unregister);
+				await RegisterComServerAsync(Path.Combine(destFolder, "Files.App.OpenDialogARM64.dll"), unregister, optional: true);
+				await RegisterComServerAsync(Path.Combine(destFolder, "Files.App.SaveDialogARM64.dll"), unregister, optional: true);
 			}
-			catch
+			catch (Exception ex)
 			{
+				App.Logger?.LogWarning(ex, "Error registering Files open/save dialog integration");
 			}
 
 		DetectResult:
@@ -256,7 +261,10 @@ namespace Files.App.ViewModels.Settings
 			using var subkey = Registry.ClassesRoot.OpenSubKey(@"Folder\shell\open\command");
 			var command = (string?)subkey?.GetValue(string.Empty);
 
-			return !string.IsNullOrEmpty(command) && command.Contains("Files.App.Launcher.exe");
+			return !string.IsNullOrEmpty(command) &&
+				(command.Contains("Files.App.Launcher.exe", StringComparison.OrdinalIgnoreCase) ||
+				 command.Contains("files-dev.exe", StringComparison.OrdinalIgnoreCase) ||
+				 command.Contains("files-dev", StringComparison.OrdinalIgnoreCase));
 		}
 
 		private bool DetectIsSetAsOpenFileDialog()
@@ -267,14 +275,85 @@ namespace Files.App.ViewModels.Settings
 			var isSetAsOpenDialog = subkeyOpen?.GetValue(string.Empty) as string == "FilesOpenDialog class";
 			var isSetAsSaveDialog = subkeySave?.GetValue(string.Empty) as string == "FilesSaveDialog class";
 
-			return isSetAsOpenDialog || isSetAsSaveDialog;
+			return isSetAsOpenDialog && isSetAsSaveDialog;
+		}
+
+		private static async Task RegisterComServerAsync(string dllPath, bool unregister, bool optional = false)
+		{
+			if (!File.Exists(dllPath))
+			{
+				if (optional)
+					return;
+
+				throw new FileNotFoundException("Required open/save dialog binary was not found.", dllPath);
+			}
+
+			var regsvr32Path = Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+				Path.GetFileNameWithoutExtension(dllPath).EndsWith("32", StringComparison.OrdinalIgnoreCase) ? "SysWOW64" : "System32",
+				"regsvr32.exe");
+
+			var unregisterArgument = unregister ? " /u" : string.Empty;
+			using var regProc = Process.Start(new ProcessStartInfo(
+				regsvr32Path,
+				$"/s /n{unregisterArgument} /i:user \"{dllPath}\"")
+			{
+				UseShellExecute = false
+			});
+
+			if (regProc is null)
+				throw new InvalidOperationException($"Could not start {regsvr32Path}.");
+
+			await regProc.WaitForExitAsync();
+			if (regProc.ExitCode != 0 && !ComDialogRegistrationMatchesExpectedState(dllPath, unregister))
+				throw new InvalidOperationException($"{Path.GetFileName(dllPath)} registration failed with exit code {regProc.ExitCode}.");
+		}
+
+		private static bool ComDialogRegistrationMatchesExpectedState(string dllPath, bool unregister)
+		{
+			var registration = GetDialogComRegistration(dllPath);
+			if (registration is null)
+				return false;
+
+			if (unregister)
+			{
+				using var key = Registry.CurrentUser.OpenSubKey(registration.Value.ClsidPath);
+				return key is null;
+			}
+
+			using var clsidKey = Registry.CurrentUser.OpenSubKey(registration.Value.ClsidPath);
+			if (!string.Equals(clsidKey?.GetValue(string.Empty) as string, registration.Value.DisplayName, StringComparison.Ordinal))
+				return false;
+
+			using var serverKey = Registry.CurrentUser.OpenSubKey(@$"{registration.Value.ClsidPath}\InProcServer32");
+			return string.Equals(serverKey?.GetValue(string.Empty) as string, dllPath, StringComparison.OrdinalIgnoreCase);
+		}
+
+		private static (string ClsidPath, string DisplayName)? GetDialogComRegistration(string dllPath)
+		{
+			var fileName = Path.GetFileNameWithoutExtension(dllPath);
+			var clsidRoot = fileName.EndsWith("32", StringComparison.OrdinalIgnoreCase)
+				? @"SOFTWARE\Classes\Wow6432Node\CLSID"
+				: @"SOFTWARE\Classes\CLSID";
+
+			if (fileName.Contains("OpenDialog", StringComparison.OrdinalIgnoreCase))
+				return ($@"{clsidRoot}\{{DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7}}", "FilesOpenDialog class");
+
+			if (fileName.Contains("SaveDialog", StringComparison.OrdinalIgnoreCase))
+				return ($@"{clsidRoot}\{{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}}", "FilesSaveDialog class");
+
+			return null;
 		}
 
 		private bool isSetAsDefaultFileManager;
 		public bool IsSetAsDefaultFileManager
 		{
 			get => isSetAsDefaultFileManager;
-			set => SetProperty(ref isSetAsDefaultFileManager, value);
+			set
+			{
+				if (SetProperty(ref isSetAsDefaultFileManager, value))
+					OnPropertyChanged(nameof(CanToggleOpenFileDialog));
+			}
 		}
 
 		private bool isSetAsOpenFileDialog;
@@ -287,6 +366,24 @@ namespace Files.App.ViewModels.Settings
 		public bool IsAppEnvironmentDev
 		{
 			get => AppLifecycleHelper.AppEnvironment is AppEnvironment.Dev;
+		}
+
+		public bool IsOpenFileDialogIntegrationAvailable => RequiredOpenFileDialogAssetsPresent(Package.Current.InstalledLocation.Path);
+
+		public bool CanToggleOpenFileDialog => IsSetAsDefaultFileManager && IsOpenFileDialogIntegrationAvailable;
+
+		public string OpenFileDialogIntegrationStatus => IsOpenFileDialogIntegrationAvailable
+			? "Routes Win32 open and save dialogs through Files Pro for apps that use the classic common dialog."
+			: "Unavailable in this package: native open/save dialog binaries are missing.";
+
+		private static bool RequiredOpenFileDialogAssetsPresent(string installedLocation)
+		{
+			var assetsPath = Path.Combine(installedLocation, "Assets", "FilesOpenDialog");
+			return File.Exists(Path.Combine(assetsPath, "Files.App.Launcher.exe")) &&
+				File.Exists(Path.Combine(assetsPath, "Files.App.OpenDialog32.dll")) &&
+				File.Exists(Path.Combine(assetsPath, "Files.App.OpenDialog64.dll")) &&
+				File.Exists(Path.Combine(assetsPath, "Files.App.SaveDialog32.dll")) &&
+				File.Exists(Path.Combine(assetsPath, "Files.App.SaveDialog64.dll"));
 		}
 
 		private FileSavePicker InitializeWithWindow(FileSavePicker obj)

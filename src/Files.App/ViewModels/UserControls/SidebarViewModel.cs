@@ -3,6 +3,7 @@
 
 using Files.App.Controls;
 using Files.App.Helpers.ContextFlyouts;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -22,6 +23,7 @@ namespace Files.App.ViewModels.UserControls
 	public sealed partial class SidebarViewModel : ObservableObject, IDisposable
 	{
 		private INetworkService NetworkService { get; } = Ioc.Default.GetRequiredService<INetworkService>();
+		private IContentPageContext ContentPageContext { get; } = Ioc.Default.GetRequiredService<IContentPageContext>();
 		private IUserSettingsService UserSettingsService { get; } = Ioc.Default.GetRequiredService<IUserSettingsService>();
 		private ICommandManager Commands { get; } = Ioc.Default.GetRequiredService<ICommandManager>();
 		private readonly DrivesViewModel drivesViewModel = Ioc.Default.GetRequiredService<DrivesViewModel>();
@@ -74,6 +76,7 @@ namespace Files.App.ViewModels.UserControls
 		private readonly SectionType[] SectionOrder =
 			[
 				SectionType.Home,
+				SectionType.FilesPro,
 				SectionType.Pinned,
 				SectionType.Library,
 				SectionType.Drives,
@@ -112,6 +115,7 @@ namespace Files.App.ViewModels.UserControls
 			{
 				"Home" => sidebarItems.FirstOrDefault(x => x.Path == "Home"),
 				"Settings" => SettingsSidebarItem,
+				"FilesPro" => sidebarItems.FirstOrDefault(x => x.Path == "FilesPro"),
 				_ => FindDeepestVisibleAncestor(value),
 			};
 
@@ -304,6 +308,7 @@ namespace Files.App.ViewModels.UserControls
 			sidebarItems = [];
 			UserSettingsService.OnSettingChangedEvent += UserSettingsService_OnSettingChangedEvent;
 			CreateItemHomeAsync();
+			CreateItemFilesProAsync();
 
 			Manager_DataChanged(SectionType.Pinned, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
 			Manager_DataChanged(SectionType.Library, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
@@ -333,6 +338,11 @@ namespace Files.App.ViewModels.UserControls
 		private Task<LocationItem> CreateItemHomeAsync()
 		{
 			return CreateSectionAsync(SectionType.Home);
+		}
+
+		private Task<LocationItem> CreateItemFilesProAsync()
+		{
+			return CreateSectionAsync(SectionType.FilesPro);
 		}
 
 		private async void Manager_DataChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -522,6 +532,15 @@ namespace Files.App.ViewModels.UserControls
 						section.Path = "Home";
 						section.Icon = new BitmapImage(new Uri(Constants.FluentIconsPaths.HomeIcon));
 						section.IsHeader = true;
+
+						break;
+					}
+
+				case SectionType.FilesPro:
+					{
+						section = BuildSection("Files Pro", sectionType, new ContextMenuOptions { IsLocationItem = true }, true);
+						section.Path = "FilesPro";
+						section.Icon = new BitmapImage(new Uri(Constants.FluentIconsPaths.StarIcon));
 
 						break;
 					}
@@ -887,6 +906,25 @@ namespace Files.App.ViewModels.UserControls
 
 				if (PaneHolder?.ActivePane is IShellPage settingsShellPage)
 					settingsShellPage.NavigateToSettings();
+				return;
+			}
+
+			if (string.Equals(navigationControlItem.Path, "FilesPro", StringComparison.OrdinalIgnoreCase))
+			{
+				App.Logger?.LogInformation("Files Pro sidebar item invoked.");
+
+				if (ctrlPressed || middleClickPressed)
+				{
+					_ = NavigationHelpers.OpenPathInNewTab("FilesPro");
+					return;
+				}
+
+				var filesProShellPage = PaneHolder?.ActivePane ?? ContentPageContext.ShellPage;
+				if (filesProShellPage is not null)
+					filesProShellPage.NavigateToPath("FilesPro", typeof(FilesProDashboardPage));
+				else
+					App.Logger?.LogWarning("Files Pro sidebar navigation skipped because no active shell page is available.");
+
 				return;
 			}
 
@@ -1269,7 +1307,8 @@ namespace Files.App.ViewModels.UserControls
 					(hasStorageItems && storageItems.AreItemsAlreadyInFolder(locationItem.Path)) ||
 					locationItem.Path.StartsWith("Home", StringComparison.OrdinalIgnoreCase) ||
 					locationItem.Path.StartsWith("ReleaseNotes", StringComparison.OrdinalIgnoreCase) ||
-					locationItem.Path.StartsWith("Settings", StringComparison.OrdinalIgnoreCase))
+					locationItem.Path.StartsWith("Settings", StringComparison.OrdinalIgnoreCase) ||
+					locationItem.Path.StartsWith("FilesPro", StringComparison.OrdinalIgnoreCase))
 				{
 					rawEvent.AcceptedOperation = DataPackageOperation.None;
 				}

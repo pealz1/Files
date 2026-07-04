@@ -53,7 +53,8 @@ namespace Files.App.Data.Items
 					Path.EndsWith(ShellLibraryItem.EXTENSION, StringComparison.OrdinalIgnoreCase) ||
 					Path == "Home" ||
 					Path == "ReleaseNotes" ||
-					Path == "Settings"
+					Path == "Settings" ||
+					Path == "FilesPro"
 					? Text
 					: Path;
 			}
@@ -70,7 +71,7 @@ namespace Files.App.Data.Items
 			{
 				if (IsExpandableFolder)
 					return ChildItems ??= [];
-				if (Section == SectionType.Home)
+				if (Section == SectionType.Home || Section == SectionType.FilesPro)
 					return null;
 				return ChildItems;
 			}

@@ -141,7 +141,7 @@ namespace Files.App.Utils.Taskbar
 		/// </remarks>
 		public SystemTrayIcon()
 		{
-			_Icon = new(AppLifecycleHelper.AppIconPath);
+			_Icon = CreateTrayIcon();
 			_Tooltip = Package.Current.DisplayName;
 			_taskbarRestartMessageId = PInvoke.RegisterWindowMessage("TaskbarCreated");
 
@@ -174,6 +174,22 @@ namespace Files.App.Utils.Taskbar
 		}
 
 		// Private Methods
+
+		private static Icon CreateTrayIcon()
+		{
+			if (System.IO.File.Exists(AppLifecycleHelper.AppIconPath))
+				return new Icon(AppLifecycleHelper.AppIconPath);
+
+			if (!string.IsNullOrWhiteSpace(Environment.ProcessPath) &&
+				System.IO.File.Exists(Environment.ProcessPath))
+			{
+				var executableIcon = Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+				if (executableIcon is not null)
+					return executableIcon;
+			}
+
+			return (Icon)SystemIcons.Application.Clone();
+		}
 
 		private void CreateOrModifyNotifyIcon()
 		{

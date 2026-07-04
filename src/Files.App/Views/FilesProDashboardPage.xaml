@@ -1,0 +1,869 @@
+<!--  Copyright (c) Files Community. Licensed under the MIT License.  -->
+<Page
+	x:Class="Files.App.Views.FilesProDashboardPage"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:controls="using:Files.App.UserControls"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	x:Name="RootPage"
+	DataContext="{x:Bind ViewModel, Mode=OneWay}"
+	mc:Ignorable="d">
+
+	<Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+			<RowDefinition Height="Auto" />
+		</Grid.RowDefinitions>
+
+		<Border
+			Padding="16,10"
+			Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+			BorderThickness="0,0,0,1">
+			<Grid RowSpacing="10">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto" />
+					<RowDefinition Height="Auto" />
+				</Grid.RowDefinitions>
+
+				<StackPanel Orientation="Horizontal" Spacing="8">
+					<FontIcon FontSize="16" Glyph="&#xE8B7;" />
+					<TextBlock
+						VerticalAlignment="Center"
+						FontSize="16"
+						FontWeight="SemiBold"
+						Text="Files Pro" />
+				</StackPanel>
+
+				<Grid Grid.Row="1" ColumnSpacing="12">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="360" />
+						<ColumnDefinition Width="328" />
+					</Grid.ColumnDefinitions>
+
+					<TextBox
+						Height="56"
+						AcceptsReturn="True"
+						Header="Scan and index roots"
+						Text="{Binding ScanRootsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+						TextWrapping="NoWrap" />
+
+					<Grid Grid.Column="1" ColumnSpacing="8">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="86" />
+						</Grid.ColumnDefinitions>
+						<TextBox
+							Header="Downloads"
+							Text="{Binding DownloadsPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+						<TextBox
+							Grid.Column="1"
+							Header="Storage scan root"
+							Text="{Binding LargeFilesRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+						<NumberBox
+							Grid.Column="2"
+							Header="Min MB"
+							Minimum="1"
+							SmallChange="128"
+							Value="{Binding MinimumLargeFileSizeMb, Mode=TwoWay}" />
+					</Grid>
+
+					<Grid
+					Grid.Column="2"
+						VerticalAlignment="Bottom"
+						ColumnSpacing="8"
+						RowSpacing="6">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="*" />
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto" />
+							<RowDefinition Height="Auto" />
+						</Grid.RowDefinitions>
+					<Button
+							MinHeight="30"
+						AutomationProperties.Name="Scan"
+						Command="{Binding StartScanCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<FontIcon FontSize="14" Glyph="&#xE768;" />
+								<TextBlock FontSize="12" Text="Scan" />
+						</StackPanel>
+					</Button>
+					<Button
+							Grid.Column="1"
+							MinHeight="30"
+						AutomationProperties.Name="Index"
+						Command="{Binding RebuildIndexCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<FontIcon FontSize="14" Glyph="&#xE895;" />
+								<TextBlock FontSize="12" Text="Index" />
+						</StackPanel>
+					</Button>
+					<Button
+							Grid.Column="2"
+							MinHeight="30"
+						AutomationProperties.Name="Cancel"
+						Command="{Binding CancelScanCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<FontIcon FontSize="14" Glyph="&#xE711;" />
+								<TextBlock FontSize="12" Text="Cancel" />
+						</StackPanel>
+					</Button>
+					<Button
+							Grid.Row="1"
+							MinHeight="30"
+						AutomationProperties.Name="Export CSV"
+						Command="{Binding ExportStorageReportCommand}"
+						CommandParameter="Csv">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<FontIcon FontSize="14" Glyph="&#xE74E;" />
+								<TextBlock FontSize="12" Text="CSV" />
+						</StackPanel>
+					</Button>
+					<Button
+							Grid.Row="1"
+							Grid.Column="1"
+							MinHeight="30"
+						AutomationProperties.Name="Export JSON"
+						Command="{Binding ExportStorageReportCommand}"
+						CommandParameter="Json">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<FontIcon FontSize="14" Glyph="&#xE74E;" />
+								<TextBlock FontSize="12" Text="JSON" />
+						</StackPanel>
+					</Button>
+					<Button
+							Grid.Row="1"
+							Grid.Column="2"
+							MinHeight="30"
+						AutomationProperties.Name="Check fast paths"
+						Command="{Binding RefreshFastPathStatusCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="6">
+								<FontIcon FontSize="14" Glyph="&#xE9D9;" />
+								<TextBlock FontSize="12" Text="Paths" />
+						</StackPanel>
+					</Button>
+					</Grid>
+				</Grid>
+			</Grid>
+		</Border>
+
+		<Pivot
+			Grid.Row="1"
+			Padding="16,4,16,0"
+			IsHeaderItemsCarouselEnabled="False">
+			<Pivot.Resources>
+				<Style TargetType="PivotHeaderItem">
+					<Setter Property="FontSize" Value="14" />
+					<Setter Property="FontWeight" Value="SemiBold" />
+					<Setter Property="MinHeight" Value="34" />
+					<Setter Property="Padding" Value="10,0" />
+				</Style>
+			</Pivot.Resources>
+			<PivotItem Header="Projects">
+				<Grid RowSpacing="8">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto" />
+						<RowDefinition Height="*" />
+					</Grid.RowDefinitions>
+					<TextBlock
+						Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+						Text="{Binding SummaryText}" />
+					<ListView
+						Grid.Row="1"
+						ItemsSource="{Binding Projects}"
+						SelectionMode="None">
+						<ListView.Header>
+							<Grid MinHeight="28" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="180" />
+									<ColumnDefinition Width="110" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="170" />
+									<ColumnDefinition Width="150" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock FontWeight="SemiBold" Text="Name" />
+								<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Type" />
+								<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Path" />
+								<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Git" />
+								<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Modified" />
+							</Grid>
+						</ListView.Header>
+						<ListView.ItemTemplate>
+							<DataTemplate>
+								<Grid MinHeight="42" ColumnSpacing="12">
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="180" />
+										<ColumnDefinition Width="110" />
+										<ColumnDefinition Width="*" />
+										<ColumnDefinition Width="170" />
+										<ColumnDefinition Width="150" />
+										<ColumnDefinition Width="Auto" />
+									</Grid.ColumnDefinitions>
+									<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+									<TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding ProjectType}" TextTrimming="CharacterEllipsis" />
+									<TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+									<TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding GitState}" TextTrimming="CharacterEllipsis" />
+									<TextBlock Grid.Column="4" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding LastModifiedText}" />
+									<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+										<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open">
+											<FontIcon Glyph="&#xE838;" />
+										</Button>
+										<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+											<FontIcon Glyph="&#xE8C8;" />
+										</Button>
+									</StackPanel>
+								</Grid>
+							</DataTemplate>
+						</ListView.ItemTemplate>
+					</ListView>
+				</Grid>
+			</PivotItem>
+
+			<PivotItem Header="Roblox">
+				<ListView ItemsSource="{Binding RobloxFiles}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="220" />
+								<ColumnDefinition Width="90" />
+								<ColumnDefinition Width="110" />
+								<ColumnDefinition Width="140" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Script" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Role" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Size" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Project" />
+							<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Path" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="42" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="220" />
+									<ColumnDefinition Width="90" />
+									<ColumnDefinition Width="110" />
+									<ColumnDefinition Width="140" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding ScriptRole}" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding SizeText}" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding LikelyProject}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+								<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+									<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open containing folder">
+										<FontIcon Glyph="&#xE838;" />
+									</Button>
+									<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+										<FontIcon Glyph="&#xE8C8;" />
+									</Button>
+								</StackPanel>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Search Index">
+				<Grid RowSpacing="8">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto" />
+						<RowDefinition Height="*" />
+					</Grid.RowDefinitions>
+					<Grid ColumnSpacing="10">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="Auto" />
+						</Grid.ColumnDefinitions>
+						<StackPanel Spacing="6">
+							<TextBox
+								Header="Indexed search"
+								Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+							<TextBlock
+								Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+								Text="{Binding IndexStatsText}"
+								TextTrimming="CharacterEllipsis" />
+							<TextBlock
+								Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+								Text="{Binding IntegrationStatusText}"
+								TextTrimming="CharacterEllipsis" />
+						</StackPanel>
+						<CheckBox
+							Grid.Column="1"
+							Margin="0,26,0,0"
+							Content="Text content"
+							IsChecked="{Binding IncludeTextContent, Mode=TwoWay}" />
+						<Button
+							Grid.Column="2"
+							Margin="0,24,0,0"
+							Command="{Binding SearchIndexCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<FontIcon Glyph="&#xE721;" />
+								<TextBlock Text="Search" />
+							</StackPanel>
+						</Button>
+					</Grid>
+					<ListView
+						Grid.Row="1"
+						ItemsSource="{Binding SearchResults}"
+						SelectionMode="None">
+						<ListView.Header>
+							<Grid MinHeight="28" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="250" />
+									<ColumnDefinition Width="90" />
+									<ColumnDefinition Width="92" />
+									<ColumnDefinition Width="130" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock FontWeight="SemiBold" Text="Name" />
+								<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Rank" />
+								<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Size" />
+								<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Modified" />
+								<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Path" />
+							</Grid>
+						</ListView.Header>
+						<ListView.ItemTemplate>
+							<DataTemplate>
+								<Grid MinHeight="42" ColumnSpacing="12">
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="250" />
+										<ColumnDefinition Width="90" />
+										<ColumnDefinition Width="92" />
+										<ColumnDefinition Width="130" />
+										<ColumnDefinition Width="*" />
+										<ColumnDefinition Width="Auto" />
+									</Grid.ColumnDefinitions>
+									<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+									<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Rank}" />
+									<TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding SizeText}" />
+									<TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding LastModifiedText}" />
+									<TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+									<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+										<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open containing folder">
+											<FontIcon Glyph="&#xE838;" />
+										</Button>
+										<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+											<FontIcon Glyph="&#xE8C8;" />
+										</Button>
+									</StackPanel>
+								</Grid>
+							</DataTemplate>
+						</ListView.ItemTemplate>
+					</ListView>
+				</Grid>
+			</PivotItem>
+
+			<PivotItem Header="Downloads Cleanup">
+				<ListView ItemsSource="{Binding CleanupSuggestions}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="220" />
+								<ColumnDefinition Width="150" />
+								<ColumnDefinition Width="170" />
+								<ColumnDefinition Width="80" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Item" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Category" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Action" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Risk" />
+							<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Why" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="44" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="220" />
+									<ColumnDefinition Width="150" />
+									<ColumnDefinition Width="170" />
+									<ColumnDefinition Width="80" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Category}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding SuggestedAction}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Risk}" />
+								<TextBlock Grid.Column="4" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Reason}" TextTrimming="CharacterEllipsis" />
+								<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+									<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open containing folder">
+										<FontIcon Glyph="&#xE838;" />
+									</Button>
+									<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+										<FontIcon Glyph="&#xE8C8;" />
+									</Button>
+								</StackPanel>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Cleanup Plan">
+				<Grid RowSpacing="8">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto" />
+						<RowDefinition Height="*" />
+					</Grid.RowDefinitions>
+					<Grid ColumnSpacing="12">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="Auto" />
+						</Grid.ColumnDefinitions>
+						<TextBlock
+							VerticalAlignment="Center"
+							Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+							Text="Move and recycle actions stay dry-run until their review checks are enabled."
+							TextTrimming="CharacterEllipsis" />
+						<CheckBox
+							Grid.Column="1"
+							Content="Review mode"
+							IsChecked="{Binding AllowCleanupExecution, Mode=TwoWay}" />
+						<Button
+							Grid.Column="2"
+							AutomationProperties.Name="Apply reviewed moves"
+							Command="{Binding ExecuteCleanupMovePlanCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<FontIcon Glyph="&#xE74D;" />
+								<TextBlock Text="Apply Moves" />
+							</StackPanel>
+						</Button>
+						<CheckBox
+							Grid.Column="3"
+							Content="Confirm recycle"
+							IsChecked="{Binding ConfirmCleanupDelete, Mode=TwoWay}" />
+						<Button
+							Grid.Column="4"
+							AutomationProperties.Name="Recycle selected cleanup item"
+							Command="{Binding ExecuteCleanupRecycleSelectedCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<FontIcon Glyph="&#xE74D;" />
+								<TextBlock Text="Recycle Selected" />
+							</StackPanel>
+						</Button>
+					</Grid>
+				<ListView
+					Grid.Row="1"
+					ItemsSource="{Binding CleanupMovePlanItems}"
+					SelectedItem="{Binding SelectedCleanupMovePlanItem, Mode=TwoWay}"
+					SelectionMode="Single">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="160" />
+								<ColumnDefinition Width="80" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Action" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Risk" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Source" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Destination" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="42" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="160" />
+									<ColumnDefinition Width="80" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Action}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Risk}" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding SourcePath}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding DestinationPath}" TextTrimming="CharacterEllipsis" />
+								<Button Grid.Column="4" Click="CopyPath_Click" Tag="{Binding DestinationPath}" ToolTipService.ToolTip="Copy destination">
+									<FontIcon Glyph="&#xE8C8;" />
+								</Button>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+				</Grid>
+			</PivotItem>
+
+			<PivotItem Header="Treemap">
+				<Grid RowSpacing="8">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto" />
+						<RowDefinition Height="*" />
+					</Grid.RowDefinitions>
+					<StackPanel Spacing="2">
+						<TextBlock
+							FontWeight="SemiBold"
+							Text="{Binding StorageSummaryText}"
+							TextTrimming="CharacterEllipsis" />
+						<TextBlock
+							Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+							Text="{Binding IntegrationStatusText}"
+							TextTrimming="CharacterEllipsis" />
+					</StackPanel>
+					<Border
+						Grid.Row="1"
+						Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+						BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+						BorderThickness="1"
+						CornerRadius="6"
+						Padding="8">
+						<controls:FilesProTreemapControl ItemsSource="{Binding TreemapTiles}" />
+					</Border>
+				</Grid>
+			</PivotItem>
+
+			<PivotItem Header="Largest Folders">
+				<ListView ItemsSource="{Binding FolderSizes}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="260" />
+								<ColumnDefinition Width="120" />
+								<ColumnDefinition Width="90" />
+								<ColumnDefinition Width="90" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Folder" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Size" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Files" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Folders" />
+							<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Path" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="42" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="260" />
+									<ColumnDefinition Width="120" />
+									<ColumnDefinition Width="90" />
+									<ColumnDefinition Width="90" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding SizeText}" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding FileCount}" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding DirectoryCount}" />
+								<TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+								<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+									<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open folder">
+										<FontIcon Glyph="&#xE838;" />
+									</Button>
+									<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+										<FontIcon Glyph="&#xE8C8;" />
+									</Button>
+								</StackPanel>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Extensions">
+				<ListView ItemsSource="{Binding ExtensionSizes}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="160" />
+								<ColumnDefinition Width="120" />
+								<ColumnDefinition Width="100" />
+								<ColumnDefinition Width="*" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Extension" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Size" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Files" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="38" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="160" />
+									<ColumnDefinition Width="120" />
+									<ColumnDefinition Width="100" />
+									<ColumnDefinition Width="*" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding Extension}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding SizeText}" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding FileCount}" />
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Large Files">
+				<ListView ItemsSource="{Binding LargeFiles}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="260" />
+								<ColumnDefinition Width="120" />
+								<ColumnDefinition Width="150" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="File" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Size" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Modified" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Path" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="42" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="260" />
+									<ColumnDefinition Width="120" />
+									<ColumnDefinition Width="150" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding SizeText}" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding LastModifiedText}" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+								<StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4">
+									<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open containing folder">
+										<FontIcon Glyph="&#xE838;" />
+									</Button>
+									<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+										<FontIcon Glyph="&#xE8C8;" />
+									</Button>
+								</StackPanel>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Duplicates">
+				<ListView ItemsSource="{Binding DuplicateGroups}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="90" />
+								<ColumnDefinition Width="120" />
+								<ColumnDefinition Width="120" />
+								<ColumnDefinition Width="130" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Count" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Each" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Wasted" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Verified" />
+							<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Example" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="42" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="90" />
+									<ColumnDefinition Width="120" />
+									<ColumnDefinition Width="120" />
+									<ColumnDefinition Width="130" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Count}" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding SizeText}" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding WastedText}" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding VerificationLevel}" />
+								<TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding PrimaryPath}" TextTrimming="CharacterEllipsis" />
+								<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+									<Button Click="OpenPath_Click" Tag="{Binding PrimaryPath}" ToolTipService.ToolTip="Open containing folder">
+										<FontIcon Glyph="&#xE838;" />
+									</Button>
+									<Button Click="CopyPath_Click" Tag="{Binding PrimaryPath}" ToolTipService.ToolTip="Copy path">
+										<FontIcon Glyph="&#xE8C8;" />
+									</Button>
+								</StackPanel>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Wasted Space">
+				<ListView ItemsSource="{Binding WastedSpaceSuggestions}" SelectionMode="None">
+					<ListView.Header>
+						<Grid MinHeight="28" ColumnSpacing="12">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="220" />
+								<ColumnDefinition Width="170" />
+								<ColumnDefinition Width="110" />
+								<ColumnDefinition Width="80" />
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<TextBlock FontWeight="SemiBold" Text="Item" />
+							<TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Category" />
+							<TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Size" />
+							<TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Risk" />
+							<TextBlock Grid.Column="4" FontWeight="SemiBold" Text="Reason" />
+						</Grid>
+					</ListView.Header>
+					<ListView.ItemTemplate>
+						<DataTemplate>
+							<Grid MinHeight="44" ColumnSpacing="12">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="220" />
+									<ColumnDefinition Width="170" />
+									<ColumnDefinition Width="110" />
+									<ColumnDefinition Width="80" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="Auto" />
+								</Grid.ColumnDefinitions>
+								<TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Category}" TextTrimming="CharacterEllipsis" />
+								<TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding SizeText}" />
+								<TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Risk}" />
+								<TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Reason}" TextTrimming="CharacterEllipsis" />
+								<StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4">
+									<Button Click="OpenPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Open containing folder">
+										<FontIcon Glyph="&#xE838;" />
+									</Button>
+									<Button Click="CopyPath_Click" Tag="{Binding Path}" ToolTipService.ToolTip="Copy path">
+										<FontIcon Glyph="&#xE8C8;" />
+									</Button>
+								</StackPanel>
+							</Grid>
+						</DataTemplate>
+					</ListView.ItemTemplate>
+				</ListView>
+			</PivotItem>
+
+			<PivotItem Header="Commands">
+				<Grid RowSpacing="8">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto" />
+						<RowDefinition Height="*" />
+					</Grid.RowDefinitions>
+					<Grid ColumnSpacing="10">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="Auto" />
+						</Grid.ColumnDefinitions>
+						<TextBox
+							Header="Command palette"
+							Text="{Binding CommandPaletteQueryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+						<Button
+							Grid.Column="1"
+							Margin="0,24,0,0"
+							Command="{Binding SearchCommandsCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<FontIcon Glyph="&#xE721;" />
+								<TextBlock Text="Filter" />
+							</StackPanel>
+						</Button>
+					</Grid>
+					<Grid Grid.Row="1" RowSpacing="8">
+						<Grid.RowDefinitions>
+							<RowDefinition Height="*" />
+							<RowDefinition Height="Auto" />
+						</Grid.RowDefinitions>
+					<ListView
+						ItemsSource="{Binding CommandPaletteItems}"
+						SelectedItem="{Binding SelectedCommand, Mode=TwoWay}"
+						SelectionMode="Single">
+						<ListView.ItemTemplate>
+							<DataTemplate>
+								<Grid MinHeight="44" ColumnSpacing="12">
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="42" />
+										<ColumnDefinition Width="220" />
+										<ColumnDefinition Width="120" />
+										<ColumnDefinition Width="90" />
+										<ColumnDefinition Width="*" />
+									</Grid.ColumnDefinitions>
+									<FontIcon VerticalAlignment="Center" Glyph="{Binding Glyph}" />
+									<TextBlock Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+									<TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Category}" />
+									<TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding SafetyText}" />
+									<TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+								</Grid>
+							</DataTemplate>
+						</ListView.ItemTemplate>
+					</ListView>
+					<Grid Grid.Row="1" ColumnSpacing="10">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="Auto" />
+							<ColumnDefinition Width="Auto" />
+						</Grid.ColumnDefinitions>
+						<TextBox
+							Header="Shell command"
+							Text="{Binding ShellCommandText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+						<CheckBox
+							Grid.Column="1"
+							Margin="0,24,0,0"
+							Content="Confirm shell execution"
+							IsChecked="{Binding ConfirmShellCommandExecution, Mode=TwoWay}" />
+						<Button
+							Grid.Column="2"
+							Margin="0,24,0,0"
+							AutomationProperties.Name="Execute selected command"
+							Command="{Binding ExecuteSelectedCommandCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<FontIcon Glyph="&#xE768;" />
+								<TextBlock Text="Run" />
+							</StackPanel>
+						</Button>
+					</Grid>
+					</Grid>
+				</Grid>
+			</PivotItem>
+		</Pivot>
+
+		<Border
+			Grid.Row="2"
+			Padding="20,8"
+			Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+			BorderThickness="0,1,0,0">
+			<Grid ColumnSpacing="12">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto" />
+					<ColumnDefinition Width="*" />
+				</Grid.ColumnDefinitions>
+				<ProgressRing
+					Width="18"
+					Height="18"
+					IsActive="{Binding IsBusy}" />
+				<TextBlock
+					Grid.Column="1"
+					VerticalAlignment="Center"
+					Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+					Text="{Binding ProgressText}"
+					TextTrimming="CharacterEllipsis" />
+			</Grid>
+		</Border>
+	</Grid>
+</Page>

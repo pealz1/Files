@@ -186,6 +186,9 @@ namespace Files.App.Views.Shells
 			if (string.IsNullOrEmpty(navigationPath))
 				return;
 
+			if (TryOpenFileNavigationTarget(navigationPath))
+				return;
+
 			var columnsLayoutPage = this.FindAscendant<ColumnsLayoutPage>();
 			if (columnsLayoutPage != null)
 			{

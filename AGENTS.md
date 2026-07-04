@@ -1,5 +1,14 @@
 # Repository Instructions
 
+> **This fork (Files-Pro).** Location: `C:\dev\Files-Pro` (moved off the legacy OneDrive
+> folder 2026-07-02). Fork of `github.com/files-community/Files` (remote `origin`).
+> The fork's differentiator is a **custom Save dialog** (`Files.App.SaveDialog` — the app
+> registers itself as the Windows Save dialog via an HKCU CLSID override; the feature was a
+> gap vs. upstream, not a regression — see Claude memory `project_files_pro_save_dialog`).
+> The 3 GB `artifacts/` build output was NOT migrated — it regenerates on build
+> (`dotnet build Files.slnx` or the MSBuild command below). Installed packaged app:
+> `FilesDev_ykqwq8d6ps0ag`, launcher `files-dev.exe`, protocol `files-dev:`.
+
 This repository contains the Files Windows desktop app, a WinUI-based file manager for Windows. The codebase includes the main app, reusable controls, storage layers, Win32/CsWin32 interop, packaging support, background/server components, and UI/interaction tests.
 
 ## Codebase Overview

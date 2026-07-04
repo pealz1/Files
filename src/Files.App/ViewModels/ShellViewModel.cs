@@ -1845,8 +1845,25 @@ namespace Files.App.ViewModels
 
 					return -1;
 				}
+				else if (res == FileSystemStatusCode.NotAFolder)
+				{
+					App.Logger.LogWarning("Folder navigation received a file path: {Path}", path);
+
+					if (SystemIO.File.Exists(path))
+					{
+						await Win32Helper.InvokeWin32ComponentAsync(path, ContentPageContext.ShellPage, workingDirectory: SystemIO.Path.GetDirectoryName(path) ?? string.Empty);
+						return -1;
+					}
+
+					await DialogDisplayHelper.ShowDialogAsync(
+						Strings.InvalidItemDialogTitle.GetLocalizedResource(),
+						string.Format(Strings.InvalidItemDialogContent.GetLocalizedResource(), Environment.NewLine, res.ErrorCode.ToString()));
+
+					return -1;
+				}
 				else
 				{
+					App.Logger.LogWarning("Folder navigation failed for {Path}: {ErrorCode}", path, res.ErrorCode);
 					await DialogDisplayHelper.ShowDialogAsync(
 						Strings.DriveUnpluggedDialog_Title.GetLocalizedResource(),
 						res.ErrorCode.ToString());
@@ -2617,6 +2634,9 @@ namespace Files.App.ViewModels
 					// New file added, enumerate ADS
 					foreach (var ads in Win32Helper.GetAlternateStreams(item.ItemPath))
 					{
+						if (!Win32StorageEnumerator.ShouldShowAlternateStream(ads))
+							continue;
+
 						var adsItem = Win32StorageEnumerator.GetAlternateStream(ads, item);
 						filesAndFolders.Add(adsItem);
 					}

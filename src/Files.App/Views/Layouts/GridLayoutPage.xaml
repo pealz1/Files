@@ -14,6 +14,7 @@
 	xmlns:i="using:Microsoft.Xaml.Interactivity"
 	xmlns:local="using:Files.App.Views.Layouts"
 	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	xmlns:muxdata="using:Microsoft.UI.Xaml.Data"
 	xmlns:storage="using:Files.App.Utils.Storage"
 	xmlns:tui="using:CommunityToolkit.WinUI"
 	xmlns:uc="using:Files.App.UserControls"
@@ -110,7 +111,7 @@
 						Grid.Row="0"
 						Width="{Binding ElementName=PageRoot, Path=ItemWidthGridView, Mode=OneWay}"
 						Height="{Binding ElementName=PageRoot, Path=ItemWidthGridView, Mode=OneWay}"
-						Opacity="{x:Bind Opacity, Mode=OneWay}"
+						Opacity="{Binding Opacity, Mode=OneWay}"
 						Tag="ItemImage">
 
 						<ContentPresenter
@@ -123,7 +124,7 @@
 							CornerRadius="{StaticResource GridViewThumbnailCornerRadius}">
 							<Image
 								x:Name="Picture"
-								Source="{x:Bind FileImage, Mode=OneWay}"
+								Source="{Binding FileImage, Mode=OneWay}"
 								Stretch="Uniform" />
 						</ContentPresenter>
 
@@ -141,8 +142,7 @@
 							HorizontalAlignment="Left"
 							VerticalAlignment="Bottom"
 							x:Load="True"
-							x:Phase="1"
-							Source="{x:Bind IconOverlay, Mode=OneWay}"
+							Source="{Binding IconOverlay, Mode=OneWay}"
 							Stretch="Uniform" />
 
 						<Viewbox
@@ -169,7 +169,7 @@
 							VerticalAlignment="Bottom"
 							x:Load="{x:Bind IsElevationRequired}"
 							x:Phase="1"
-							Source="{x:Bind ShieldIcon, Mode=OneWay}"
+							Source="{Binding ShieldIcon, Mode=OneWay}"
 							Stretch="Uniform" />
 					</Grid>
 
@@ -189,15 +189,15 @@
 							x:Name="CloudDriveSyncStatusGlyph"
 							Grid.Column="0"
 							HorizontalAlignment="Left"
-							x:Load="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).LoadSyncStatus, Mode=OneWay}"
+							x:Load="{x:Bind SyncStatusUI.LoadSyncStatus, Mode=OneWay}"
 							x:Phase="2"
 							Background="Transparent"
-							ToolTipService.ToolTip="{x:Bind SyncStatusUI.SyncStatusString, Mode=OneWay}">
+							ToolTipService.ToolTip="{Binding SyncStatusUI.SyncStatusString, Mode=OneWay}">
 							<controls:ThemedIcon
 								Width="16"
 								Height="16"
 								Margin="0,0,4,0"
-								Style="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).ThemedIconStyle, Mode=OneWay}" />
+								Style="{Binding SyncStatusUI.ThemedIconStyle, Mode=OneWay}" />
 						</Border>
 
 						<Ellipse
@@ -205,10 +205,9 @@
 							Width="12"
 							Height="12"
 							Margin="0,0,4,0"
-							x:Phase="2"
-							Fill="{x:Bind FileTagsUI[0].Color, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}"
-							ToolTipService.ToolTip="{x:Bind FileTagsUI[0].Name, Mode=OneWay}"
-							Visibility="{x:Bind FileTagsUI, Converter={StaticResource EmptyObjectToObjectConverter}, Mode=OneWay}" />
+							Fill="{Binding FileTagsUI[0].Color, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}"
+							ToolTipService.ToolTip="{Binding FileTagsUI[0].Name, Mode=OneWay}"
+							Visibility="{Binding FileTagsUI, Converter={StaticResource EmptyObjectToObjectConverter}, Mode=OneWay}" />
 
 						<TextBlock
 							x:Name="ItemName"
@@ -216,8 +215,8 @@
 							Height="60"
 							HorizontalAlignment="Stretch"
 							VerticalAlignment="Stretch"
-							Opacity="{x:Bind Opacity, Mode=OneWay}"
-							Text="{x:Bind Name, Mode=OneWay}"
+							Opacity="{Binding Opacity, Mode=OneWay}"
+							Text="{Binding Name, Mode=OneWay}"
 							TextAlignment="Center"
 							TextTrimming="CharacterEllipsis"
 							TextWrapping="Wrap" />
@@ -302,7 +301,7 @@
 							HorizontalAlignment="Center"
 							VerticalAlignment="Center"
 							AutomationProperties.Name="{helpers:ResourceString Name=FileBrowserThumbnailIconColumnGrid/AutomationProperties/Name}"
-							Opacity="{x:Bind Opacity, Mode=OneWay}"
+							Opacity="{Binding Opacity, Mode=OneWay}"
 							TabFocusNavigation="Local"
 							Tag="ItemImage">
 							<ContentPresenter
@@ -314,7 +313,7 @@
 								CornerRadius="{StaticResource DetailsLayoutThumbnailCornerRadius}">
 								<Image
 									x:Name="Picture"
-									Source="{x:Bind FileImage, Mode=OneWay}"
+									Source="{Binding FileImage, Mode=OneWay}"
 									Stretch="Uniform" />
 							</ContentPresenter>
 
@@ -332,7 +331,7 @@
 								HorizontalAlignment="Left"
 								VerticalAlignment="Bottom"
 								x:Load="True"
-								Source="{x:Bind IconOverlay, Mode=OneWay}"
+								Source="{Binding IconOverlay, Mode=OneWay}"
 								Stretch="Uniform" />
 							<Viewbox
 								x:Name="ShortcutGlyphElement"
@@ -350,7 +349,7 @@
 								HorizontalAlignment="Right"
 								VerticalAlignment="Bottom"
 								x:Load="{x:Bind IsElevationRequired}"
-								Source="{x:Bind ShieldIcon, Mode=OneWay}"
+								Source="{Binding ShieldIcon, Mode=OneWay}"
 								Stretch="Uniform" />
 						</Grid>
 
@@ -374,8 +373,8 @@
 						Margin="5,0,5,0"
 						HorizontalAlignment="Left"
 						VerticalAlignment="Center"
-						Opacity="{x:Bind Opacity, Mode=OneWay}"
-						Text="{x:Bind Name, Mode=OneWay}"
+						Opacity="{Binding Opacity, Mode=OneWay}"
+						Text="{Binding Name, Mode=OneWay}"
 						TextTrimming="CharacterEllipsis"
 						TextWrapping="NoWrap" />
 
@@ -401,14 +400,14 @@
 						Grid.Column="2"
 						HorizontalAlignment="Center"
 						VerticalAlignment="Center"
-						x:Load="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).LoadSyncStatus, Mode=OneWay}"
+						x:Load="{x:Bind SyncStatusUI.LoadSyncStatus, Mode=OneWay}"
 						x:Phase="2"
 						Background="Transparent"
-						ToolTipService.ToolTip="{x:Bind SyncStatusUI.SyncStatusString, Mode=OneWay}">
+						ToolTipService.ToolTip="{Binding SyncStatusUI.SyncStatusString, Mode=OneWay}">
 						<controls:ThemedIcon
 							Width="16"
 							Height="16"
-							Style="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).ThemedIconStyle, Mode=OneWay}" />
+							Style="{Binding SyncStatusUI.ThemedIconStyle, Mode=OneWay}" />
 					</Border>
 
 					<!--  Visual Status Managing  -->
@@ -447,7 +446,7 @@
 							Width="{Binding ElementName=PageRoot, Path=CardsViewIconBoxWidth, Mode=OneWay}"
 							Height="{Binding ElementName=PageRoot, Path=CardsViewIconBoxHeight, Mode=OneWay}"
 							Background="{ThemeResource SystemFillColorNeutralBackgroundBrush}"
-							Opacity="{x:Bind Opacity, Mode=OneWay}"
+							Opacity="{Binding Opacity, Mode=OneWay}"
 							Tag="ItemImage">
 
 							<ContentPresenter
@@ -460,7 +459,7 @@
 								CornerRadius="{StaticResource GridViewThumbnailCornerRadius}">
 								<Image
 									x:Name="Picture"
-									Source="{x:Bind FileImage, Mode=OneWay}"
+									Source="{Binding FileImage, Mode=OneWay}"
 									Stretch="Uniform" />
 							</ContentPresenter>
 
@@ -479,8 +478,7 @@
 								HorizontalAlignment="Right"
 								VerticalAlignment="Top"
 								x:Load="True"
-								x:Phase="1"
-								Source="{x:Bind IconOverlay, Mode=OneWay}"
+								Source="{Binding IconOverlay, Mode=OneWay}"
 								Stretch="Uniform" />
 
 							<Viewbox
@@ -506,7 +504,7 @@
 								VerticalAlignment="Top"
 								x:Load="{x:Bind IsElevationRequired}"
 								x:Phase="1"
-								Source="{x:Bind ShieldIcon, Mode=OneWay}"
+								Source="{Binding ShieldIcon, Mode=OneWay}"
 								Stretch="Uniform" />
 
 							<CheckBox
@@ -549,9 +547,9 @@
 								<TextBlock
 									x:Name="ItemName"
 									MaxLines="{Binding ElementName=PageRoot, Path=CardsViewItemNameMaxLines, Mode=OneWay}"
-									Opacity="{x:Bind Opacity, Mode=OneWay}"
+									Opacity="{Binding Opacity, Mode=OneWay}"
 									Style="{ThemeResource App.Theme.BodyStrongTextBlockStyle}"
-									Text="{x:Bind Name, Mode=OneWay}"
+									Text="{Binding Name, Mode=OneWay}"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="Wrap" />
 
@@ -559,7 +557,7 @@
 								<TextBlock
 									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
 									Style="{ThemeResource App.Theme.CaptionTextBlockStyle}"
-									Text="{x:Bind ItemType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+									Text="{Binding ItemType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
 
@@ -574,7 +572,7 @@
 								HorizontalAlignment="Stretch"
 								BeforeTextChanging="ItemNameTextBox_BeforeTextChanging"
 								Canvas.ZIndex="1"
-								Text="{x:Bind Name, Mode=OneWay}"
+								Text="{Binding Name, Mode=OneWay}"
 								TextWrapping="Wrap"
 								Visibility="Collapsed">
 								<TextBox.Resources>
@@ -605,7 +603,7 @@
 								<TextBlock
 									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
 									Style="{ThemeResource CaptionTextBlockStyle}"
-									Text="{x:Bind ContextualProperty, Mode=OneWay}"
+									Text="{Binding ContextualProperty, Mode=OneWay}"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap"
 									Visibility="{Binding ElementName=PageRoot, Path=CardsViewShowContextualProperty, Mode=OneWay}" />
@@ -615,14 +613,14 @@
 									x:Name="DriveStorageProgressBar"
 									x:Load="{x:Bind ShowDriveStorageDetails, Mode=OneWay}"
 									AutomationProperties.AccessibilityView="Raw"
-									Maximum="{x:Bind MaxSpace.GigaBytes, Mode=OneWay}"
-									Value="{x:Bind SpaceUsed.GigaBytes, Mode=OneWay}" />
+									Maximum="{Binding MaxSpace.GigaBytes, Mode=OneWay}"
+									Value="{Binding SpaceUsed.GigaBytes, Mode=OneWay}" />
 
 								<!--  Item Size  -->
 								<TextBlock
 									Foreground="{ThemeResource TextFillColorSecondaryBrush}"
 									Style="{ThemeResource CaptionTextBlockStyle}"
-									Text="{x:Bind FileSize, Mode=OneWay}"
+									Text="{Binding FileSize, Mode=OneWay}"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
 
@@ -633,8 +631,8 @@
 										HorizontalAlignment="Left"
 										VerticalAlignment="Center"
 										x:Load="{x:Bind HasTags, Mode=OneWay, FallbackValue=False}"
-										ItemsSource="{x:Bind FileTagsUI, Mode=OneWay}"
-										Visibility="{x:Bind FileTagsUI, Converter={StaticResource EmptyObjectToObjectConverter}, Mode=OneWay}">
+										ItemsSource="{Binding FileTagsUI, Mode=OneWay}"
+										Visibility="{Binding FileTagsUI, Converter={StaticResource EmptyObjectToObjectConverter}, Mode=OneWay}">
 										<ItemsRepeater.Layout>
 											<StackLayout Orientation="Horizontal" Spacing="-4" />
 										</ItemsRepeater.Layout>
@@ -661,14 +659,13 @@
 										x:Name="CloudDriveSyncStatusGlyph"
 										HorizontalAlignment="Right"
 										VerticalAlignment="Center"
-										x:Phase="2"
 										Background="Transparent"
-										ToolTipService.ToolTip="{x:Bind SyncStatusUI.SyncStatusString, Mode=OneWay}"
+										ToolTipService.ToolTip="{Binding SyncStatusUI.SyncStatusString, Mode=OneWay}"
 										Visibility="{Binding InstanceViewModel.IsPageTypeCloudDrive, ElementName=PageRoot, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
 										<controls:ThemedIcon
 											Width="16"
 											Height="16"
-											Style="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).ThemedIconStyle, Mode=OneWay}" />
+											Style="{Binding SyncStatusUI.ThemedIconStyle, Mode=OneWay}" />
 									</Border>
 								</Grid>
 							</StackPanel>
@@ -971,7 +968,7 @@
 		</Style>
 	</local:BaseGroupableLayoutPage.Resources>
 
-	<Grid x:Name="RootGrid" ContextFlyout="{x:Bind BaseContextMenuFlyout}">
+	<Grid x:Name="RootGrid" ContextFlyout="{Binding BaseContextMenuFlyout, ElementName=PageRoot, Mode=OneWay}">
 		<Grid.RowDefinitions>
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="*" />
@@ -983,7 +980,7 @@
 			HorizontalAlignment="Center"
 			VerticalAlignment="Top"
 			Canvas.ZIndex="0"
-			EmptyTextType="{x:Bind ParentShellPageInstance.ShellViewModel.EmptyTextType, Mode=OneWay}" />
+			EmptyTextType="{Binding ParentShellPageInstance.ShellViewModel.EmptyTextType, ElementName=PageRoot, Mode=OneWay}" />
 
 		<!--  Invalid Item Name Tip  -->
 		<TeachingTip
@@ -997,9 +994,9 @@
 		<SemanticZoom
 			x:Name="RootGridZoom"
 			Grid.Row="1"
-			CanChangeViews="{x:Bind CollectionViewSource.IsSourceGrouped, Mode=OneWay}"
+			CanChangeViews="{Binding CollectionViewSource.IsSourceGrouped, ElementName=PageRoot, Mode=OneWay}"
 			ViewChangeStarted="SemanticZoom_ViewChangeStarted"
-			Visibility="{x:Bind FolderSettings.IsLayoutModeChanging, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}">
+			Visibility="{Binding FolderSettings.IsLayoutModeChanging, ElementName=PageRoot, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}">
 
 			<!--  Main View  -->
 			<SemanticZoom.ZoomedInView>
@@ -1007,11 +1004,11 @@
 					x:Name="FileList"
 					Padding="8"
 					VerticalContentAlignment="Stretch"
-					ext:ScrollViewerMiddleClickExtensions.EnableMiddleClickScrolling="{x:Bind IsMiddleClickToScrollEnabled, Mode=OneWay}"
+					ext:ScrollViewerMiddleClickExtensions.EnableMiddleClickScrolling="{Binding IsMiddleClickToScrollEnabled, ElementName=PageRoot, Mode=OneWay}"
 					wctanimations:ItemsReorderAnimation.Duration="0:0:0.350"
 					x:FieldModifier="public"
-					AllowDrop="{x:Bind InstanceViewModel.IsPageTypeSearchResults, Converter={StaticResource BoolNegationConverter}, Mode=OneWay}"
-					CanDragItems="{x:Bind AllowItemDrag, Mode=OneWay}"
+					AllowDrop="{Binding InstanceViewModel.IsPageTypeSearchResults, ElementName=PageRoot, Converter={StaticResource BoolNegationConverter}, Mode=OneWay}"
+					CanDragItems="{Binding AllowItemDrag, ElementName=PageRoot, Mode=OneWay}"
 					ContainerContentChanging="FileList_ContainerContentChanging"
 					DoubleTapped="FileList_DoubleTapped"
 					DragEnter="ItemsLayout_DragEnter"
@@ -1025,7 +1022,7 @@
 					IsDoubleTapEnabled="True"
 					IsTabStop="True"
 					ItemContainerTransitions="{x:Null}"
-					ItemsSource="{x:Bind CollectionViewSource.View, Mode=OneWay}"
+					ItemsSource="{Binding CollectionViewSource.View, ElementName=PageRoot, Mode=OneWay}"
 					Loaded="FileList_Loaded"
 					PreviewKeyDown="FileList_PreviewKeyDown"
 					ScrollViewer.IsHorizontalScrollChainingEnabled="False"
@@ -1041,7 +1038,7 @@
 									<Grid
 										Padding="0,0,0,4"
 										VerticalAlignment="Bottom"
-										AutomationProperties.Name="{x:Bind Model.Text}"
+										AutomationProperties.Name="{Binding Model.Text}"
 										ColumnSpacing="8"
 										RowSpacing="8">
 										<Grid.ColumnDefinitions>
@@ -1060,15 +1057,15 @@
 											VerticalAlignment="Center"
 											FontSize="16"
 											Style="{StaticResource SubtitleTextBlockStyle}"
-											Text="{x:Bind Model.Text, Mode=OneWay}" />
+											Text="{Binding Model.Text, Mode=OneWay}" />
 
 										<TextBlock
 											Grid.Row="0"
 											Grid.Column="1"
 											VerticalAlignment="Center"
 											Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-											Text="{x:Bind Model.CountText, Mode=OneWay}"
-											Visibility="{x:Bind Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
+											Text="{Binding Model.CountText, Mode=OneWay}"
+											Visibility="{Binding Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
 
 										<TextBlock
 											Grid.Row="0"
@@ -1076,15 +1073,15 @@
 											VerticalAlignment="Center"
 											FontSize="14"
 											Style="{StaticResource SubheaderTextBlockStyle}"
-											Text="{x:Bind Model.Subtext, Mode=OneWay}"
-											Visibility="{x:Bind Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+											Text="{Binding Model.Subtext, Mode=OneWay}"
+											Visibility="{Binding Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 										<TextBlock
 											Grid.Row="1"
 											Grid.ColumnSpan="3"
 											Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-											Text="{x:Bind Model.CountText, Mode=OneWay}"
-											Visibility="{x:Bind Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+											Text="{Binding Model.CountText, Mode=OneWay}"
+											Visibility="{Binding Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 									</Grid>
 								</DataTemplate>
@@ -1101,14 +1098,14 @@
 					Padding="0,12,0,0"
 					HorizontalAlignment="Stretch"
 					VerticalContentAlignment="Center"
-					ItemsSource="{x:Bind CollectionViewSource.View.CollectionGroups, Mode=OneWay}"
+					ItemsSource="{Binding CollectionViewSource.View.CollectionGroups, ElementName=PageRoot, Mode=OneWay}"
 					SelectionMode="None">
 					<ListView.ItemTemplate>
-						<DataTemplate x:DataType="ICollectionViewGroup">
+						<DataTemplate x:DataType="muxdata:ICollectionViewGroup">
 							<Grid
 								Padding="8"
 								VerticalAlignment="Center"
-								AutomationProperties.Name="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Text, Mode=OneWay}"
+								AutomationProperties.Name="{Binding Group.Model.Text, Mode=OneWay}"
 								ColumnSpacing="12"
 								RowSpacing="4">
 								<Grid.ColumnDefinitions>
@@ -1129,7 +1126,7 @@
 									Height="24"
 									HorizontalAlignment="Center"
 									VerticalAlignment="Center"
-									Source="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ImageSource, Mode=OneWay}"
+									Source="{Binding Group.Model.ImageSource, Mode=OneWay}"
 									Stretch="Uniform" />
 
 								<FontIcon
@@ -1139,7 +1136,7 @@
 									HorizontalAlignment="Center"
 									VerticalAlignment="Center"
 									FontSize="24"
-									Glyph="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Icon, Mode=OneWay}" />
+									Glyph="{Binding Group.Model.Icon, Mode=OneWay}" />
 
 								<TextBlock
 									Grid.Row="0"
@@ -1147,7 +1144,7 @@
 									VerticalAlignment="Center"
 									FontSize="16"
 									Style="{StaticResource SubtitleTextBlockStyle}"
-									Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Text, Mode=OneWay}" />
+									Text="{Binding Group.Model.Text, Mode=OneWay}" />
 
 								<TextBlock
 									Grid.Row="0"
@@ -1155,8 +1152,8 @@
 									VerticalAlignment="Center"
 									Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
 									Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-									Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.CountText, Mode=OneWay}"
-									Visibility="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
+									Text="{Binding Group.Model.CountText, Mode=OneWay}"
+									Visibility="{Binding Group.Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
 
 								<TextBlock
 									Grid.Row="0"
@@ -1165,8 +1162,8 @@
 									FontSize="14"
 									Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
 									Style="{StaticResource SubheaderTextBlockStyle}"
-									Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Subtext, Mode=OneWay}"
-									Visibility="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+									Text="{Binding Group.Model.Subtext, Mode=OneWay}"
+									Visibility="{Binding Group.Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 								<TextBlock
 									Grid.Row="1"
@@ -1174,8 +1171,8 @@
 									Grid.ColumnSpan="3"
 									Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
 									Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-									Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.CountText, Mode=OneWay}"
-									Visibility="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+									Text="{Binding Group.Model.CountText, Mode=OneWay}"
+									Visibility="{Binding Group.Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 							</Grid>
 						</DataTemplate>

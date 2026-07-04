@@ -163,6 +163,7 @@ namespace Files.App.Data.Contexts
 				case nameof(CurrentInstanceViewModel.IsPageTypeSearchResults):
 				case nameof(CurrentInstanceViewModel.IsPageTypeReleaseNotes):
 				case nameof(CurrentInstanceViewModel.IsPageTypeSettings):
+				case nameof(CurrentInstanceViewModel.IsPageTypeFilesPro):
 					UpdatePageType();
 					break;
 				case nameof(CurrentInstanceViewModel.IsGitRepository):
@@ -234,6 +235,7 @@ namespace Files.App.Data.Contexts
 				{ IsPageTypeMtpDevice: true } => ContentPageTypes.MtpDevice,
 				{ IsPageTypeSearchResults: true } => ContentPageTypes.SearchResults,
 				{ IsPageTypeSettings: true } => ContentPageTypes.Settings,
+				{ IsPageTypeFilesPro: true } => ContentPageTypes.FilesPro,
 				_ => ContentPageTypes.Folder,
 			};
 			SetProperty(ref pageType, type, nameof(PageType));
@@ -265,7 +267,8 @@ namespace Files.App.Data.Contexts
 				and not ContentPageTypes.SearchResults
 				and not ContentPageTypes.MtpDevice
 				and not ContentPageTypes.ReleaseNotes
-				and not ContentPageTypes.Settings;
+				and not ContentPageTypes.Settings
+				and not ContentPageTypes.FilesPro;
 		}
 	}
 }

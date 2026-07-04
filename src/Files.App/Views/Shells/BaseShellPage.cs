@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Microsoft.UI.Input;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -468,6 +469,9 @@ namespace Files.App.Views.Shells
 
 		public void NavigateToPath(string navigationPath, NavigationArguments? navArgs = null)
 		{
+			if (TryOpenFileNavigationTarget(navigationPath))
+				return;
+
 			var layout = FolderSettings.GetLayoutType(navigationPath);
 
 			// Don't use Columns Layout for displaying tags
@@ -475,6 +479,34 @@ namespace Files.App.Views.Shells
 				layout = typeof(DetailsLayoutPage);
 
 			NavigateToPath(navigationPath, layout, navArgs);
+		}
+
+		protected bool TryOpenFileNavigationTarget(string? navigationPath)
+		{
+			if (string.IsNullOrWhiteSpace(navigationPath) ||
+				navigationPath.Equals("FilesPro", StringComparison.OrdinalIgnoreCase) ||
+				navigationPath.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ||
+				navigationPath.StartsWith(@"\\SHELL\", StringComparison.OrdinalIgnoreCase) ||
+				FtpHelpers.IsFtpPath(navigationPath) ||
+				ZipStorageFolder.IsZipPath(navigationPath))
+			{
+				return false;
+			}
+
+			try
+			{
+				if (!SystemIO.File.Exists(navigationPath))
+					return false;
+
+				var workingDirectory = SystemIO.Path.GetDirectoryName(navigationPath) ?? ShellViewModel?.WorkingDirectory ?? string.Empty;
+				_ = Win32Helper.InvokeWin32ComponentAsync(navigationPath, this, workingDirectory: workingDirectory);
+				return true;
+			}
+			catch (Exception ex)
+			{
+				App.Logger.LogWarning(ex, "Failed to open file navigation target {Path}", navigationPath);
+				return false;
+			}
 		}
 
 		public Task TabItemDragOver(object sender, DragEventArgs e)
@@ -544,7 +576,8 @@ namespace Files.App.Views.Shells
 				if (entry.Parameter is NavigationArguments args &&
 					args.NavPathParam is not null and not "Home" &&
 					args.NavPathParam is not null and not "ReleaseNotes" &&
-					args.NavPathParam is not null and not "Settings")
+					args.NavPathParam is not null and not "Settings" &&
+					args.NavPathParam is not null and not "FilesPro")
 				{
 					var correctPageType = FolderSettings.GetLayoutType(args.NavPathParam, false);
 					if (!entry.SourcePageType.Equals(correctPageType))
@@ -562,7 +595,8 @@ namespace Files.App.Views.Shells
 				if (entry.Parameter is NavigationArguments args &&
 					args.NavPathParam is not null and not "Home" &&
 					args.NavPathParam is not null and not "ReleaseNotes" &&
-					args.NavPathParam is not null and not "Settings")
+					args.NavPathParam is not null and not "Settings" &&
+					args.NavPathParam is not null and not "FilesPro")
 				{
 					var correctPageType = FolderSettings.GetLayoutType(args.NavPathParam, false);
 					if (!entry.SourcePageType.Equals(correctPageType))

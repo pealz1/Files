@@ -147,11 +147,12 @@
 			<wctcontrols:SettingsCard
 				x:Name="ReplaceOpenFileDialogSetting"
 				x:Load="{x:Bind ViewModel.IsAppEnvironmentDev}"
+				Description="{x:Bind ViewModel.OpenFileDialogIntegrationStatus, Mode=OneWay}"
 				Header="{helpers:ResourceString Name=SettingsSetAsOpenDialog}">
 				<wctcontrols:SettingsCard.HeaderIcon>
 					<FontIcon Glyph="&#xE8E5;" />
 				</wctcontrols:SettingsCard.HeaderIcon>
-				<ToggleSwitch IsEnabled="{x:Bind ViewModel.IsSetAsDefaultFileManager, Mode=OneWay}" IsOn="{x:Bind ViewModel.IsSetAsOpenFileDialog, Mode=TwoWay}">
+				<ToggleSwitch IsEnabled="{x:Bind ViewModel.CanToggleOpenFileDialog, Mode=OneWay}" IsOn="{x:Bind ViewModel.IsSetAsOpenFileDialog, Mode=TwoWay}">
 					<i:Interaction.Behaviors>
 						<i:EventTriggerBehavior EventName="Toggled">
 							<i:InvokeCommandAction Command="{x:Bind ViewModel.SetAsOpenFileDialogCommand, Mode=OneWay}" />

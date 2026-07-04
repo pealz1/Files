@@ -29,6 +29,7 @@ namespace Files.App.Data.Contracts
 	public enum SectionType
 	{
 		Home,
+		FilesPro,
 		Pinned,
 		Library,
 		Drives,

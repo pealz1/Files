@@ -60,6 +60,7 @@
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories Condition="'$(FilesProAtlRoot)'!=''">$(FilesProAtlRoot)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -80,6 +81,8 @@
       <RegisterOutput>false</RegisterOutput>
       <PerUserRedirection>true</PerUserRedirection>
       <OutputFile>$(OutDir)Files.App.OpenDialog$(PlatformArchitecture)$(TargetExt)</OutputFile>
+      <AdditionalLibraryDirectories Condition="'$(FilesProAtlRoot)'!='' and '$(Platform)'=='x64'">$(FilesProAtlRoot)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(FilesProAtlRoot)'!='' and '$(Platform)'=='Win32'">$(FilesProAtlRoot)\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /s /y "$(ProjectDir)$(OutDir)*.dll" "$(ProjectDir)..\..\src\Files.App\Assets\FilesOpenDialog"</Command>

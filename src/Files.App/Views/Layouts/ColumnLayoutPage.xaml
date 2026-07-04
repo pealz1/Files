@@ -12,6 +12,7 @@
 	xmlns:helpers="using:Files.App.Helpers"
 	xmlns:local="using:Files.App.Views.Layouts"
 	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	xmlns:muxdata="using:Microsoft.UI.Xaml.Data"
 	xmlns:storage="using:Files.App.Utils.Storage"
 	xmlns:uc="using:Files.App.UserControls"
 	xmlns:wct="using:CommunityToolkit.WinUI"
@@ -150,14 +151,14 @@
 
 	</local:BaseGroupableLayoutPage.Resources>
 
-	<Grid x:Name="RootGrid" ContextFlyout="{x:Bind BaseContextMenuFlyout}">
+	<Grid x:Name="RootGrid" ContextFlyout="{Binding BaseContextMenuFlyout, ElementName=PageRoot, Mode=OneWay}">
 
 		<!--  Empty Indicator  -->
 		<uc:FolderEmptyIndicator
 			HorizontalAlignment="Center"
 			VerticalAlignment="Center"
 			Canvas.ZIndex="0"
-			EmptyTextType="{x:Bind ParentShellPageInstance.ShellViewModel.EmptyTextType, Mode=OneWay}" />
+			EmptyTextType="{Binding ParentShellPageInstance.ShellViewModel.EmptyTextType, ElementName=PageRoot, Mode=OneWay}" />
 
 		<!--  Invalid Item Name Tip  -->
 		<TeachingTip
@@ -171,19 +172,19 @@
 		<!--  Grouping/Ungrouping  -->
 		<SemanticZoom
 			x:Name="RootGridZoom"
-			CanChangeViews="{x:Bind CollectionViewSource.IsSourceGrouped, Mode=OneWay}"
+			CanChangeViews="{Binding CollectionViewSource.IsSourceGrouped, ElementName=PageRoot, Mode=OneWay}"
 			ViewChangeStarted="SemanticZoom_ViewChangeStarted"
-			Visibility="{x:Bind FolderSettings.IsLayoutModeChanging, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}">
+			Visibility="{Binding FolderSettings.IsLayoutModeChanging, ElementName=PageRoot, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}">
 
 			<!--  Main View  -->
 			<SemanticZoom.ZoomedInView>
 				<ListView
 					x:Name="FileList"
 					Padding="8,0,8,0"
-					ext:ScrollViewerMiddleClickExtensions.EnableMiddleClickScrolling="{x:Bind IsMiddleClickToScrollEnabled, Mode=OneWay}"
+					ext:ScrollViewerMiddleClickExtensions.EnableMiddleClickScrolling="{Binding IsMiddleClickToScrollEnabled, ElementName=PageRoot, Mode=OneWay}"
 					x:FieldModifier="public"
-					AllowDrop="{x:Bind InstanceViewModel.IsPageTypeSearchResults, Converter={StaticResource BoolNegationConverter}, Mode=OneWay}"
-					CanDragItems="{x:Bind AllowItemDrag, Mode=OneWay}"
+					AllowDrop="{Binding InstanceViewModel.IsPageTypeSearchResults, ElementName=PageRoot, Converter={StaticResource BoolNegationConverter}, Mode=OneWay}"
+					CanDragItems="{Binding AllowItemDrag, ElementName=PageRoot, Mode=OneWay}"
 					ContainerContentChanging="FileList_ContainerContentChanging"
 					DoubleTapped="FileList_DoubleTapped"
 					DragItemsCompleted="FileList_DragItemsCompleted"
@@ -197,7 +198,7 @@
 					IsRightTapEnabled="True"
 					IsTabStop="True"
 					ItemContainerTransitions="{x:Null}"
-					ItemsSource="{x:Bind CollectionViewSource.View, Mode=OneWay}"
+					ItemsSource="{Binding CollectionViewSource.View, ElementName=PageRoot, Mode=OneWay}"
 					Loaded="FileList_Loaded"
 					PointerPressed="FileList_PointerPressed"
 					PreviewKeyDown="FileList_PreviewKeyDown"
@@ -229,7 +230,7 @@
 									Grid.Column="0"
 									Width="{Binding IconBoxSize, ElementName=PageRoot, Mode=OneWay}"
 									Height="{Binding IconBoxSize, ElementName=PageRoot, Mode=OneWay}"
-									Opacity="{x:Bind Opacity, Mode=OneWay}"
+									Opacity="{Binding Opacity, Mode=OneWay}"
 									Tag="IconBox">
 									<ContentPresenter
 										x:Name="PicturePresenter"
@@ -240,7 +241,7 @@
 										CornerRadius="{StaticResource DetailsLayoutThumbnailCornerRadius}">
 										<Image
 											x:Name="Picture"
-											Source="{x:Bind FileImage, Mode=OneWay}"
+											Source="{Binding FileImage, Mode=OneWay}"
 											Stretch="Uniform" />
 									</ContentPresenter>
 
@@ -258,7 +259,7 @@
 										HorizontalAlignment="Left"
 										VerticalAlignment="Bottom"
 										x:Load="True"
-										Source="{x:Bind IconOverlay, Mode=OneWay}"
+										Source="{Binding IconOverlay, Mode=OneWay}"
 										Stretch="Uniform" />
 
 									<Viewbox
@@ -267,7 +268,7 @@
 										Height="10"
 										HorizontalAlignment="Left"
 										VerticalAlignment="Bottom"
-										Visibility="{x:Bind IsShortcut}">
+										Visibility="{Binding IsShortcut, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
 										<controls:ThemedIcon Style="{StaticResource App.ThemedIcons.Shortcut}" />
 									</Viewbox>
 									<Image
@@ -277,8 +278,8 @@
 										Margin="2"
 										HorizontalAlignment="Right"
 										VerticalAlignment="Bottom"
-										x:Load="{x:Bind IsElevationRequired}"
-										Source="{x:Bind ShieldIcon, Mode=OneWay}"
+										x:Load="{x:Bind IsElevationRequired, Mode=OneWay}"
+										Source="{Binding ShieldIcon, Mode=OneWay}"
 										Stretch="Uniform" />
 								</Grid>
 
@@ -289,8 +290,8 @@
 									Margin="5,0,5,0"
 									HorizontalAlignment="Left"
 									VerticalAlignment="Center"
-									Opacity="{x:Bind Opacity, Mode=OneWay}"
-									Text="{x:Bind Name, Mode=OneWay}"
+									Opacity="{Binding Opacity, Mode=OneWay}"
+									Text="{Binding Name, Mode=OneWay}"
 									TextTrimming="CharacterEllipsis"
 									TextWrapping="NoWrap" />
 
@@ -317,14 +318,14 @@
 											x:Name="CloudDriveSyncStatusGlyph"
 											HorizontalAlignment="Center"
 											VerticalAlignment="Center"
-											x:Load="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).LoadSyncStatus, Mode=OneWay}"
+											x:Load="{x:Bind SyncStatusUI.LoadSyncStatus, Mode=OneWay}"
 											x:Phase="2"
 											Background="Transparent"
-											ToolTipService.ToolTip="{x:Bind SyncStatusUI.SyncStatusString, Mode=OneWay}">
+											ToolTipService.ToolTip="{Binding SyncStatusUI.SyncStatusString, Mode=OneWay}">
 											<controls:ThemedIcon
 												Width="16"
 												Height="16"
-												Style="{x:Bind ((cloud:CloudDriveSyncStatusUI)SyncStatusUI).ThemedIconStyle, Mode=OneWay}" />
+												Style="{Binding SyncStatusUI.ThemedIconStyle, Mode=OneWay}" />
 										</Border>
 
 										<!--  Tag  -->
@@ -332,17 +333,16 @@
 											Width="12"
 											Height="12"
 											Margin="8,0,4,0"
-											x:Phase="2"
-											Fill="{x:Bind FileTagsUI[0].Color, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}"
-											ToolTipService.ToolTip="{x:Bind FileTagsUI[0].Name, Mode=OneWay}"
-											Visibility="{x:Bind FileTagsUI, Converter={StaticResource EmptyObjectToObjectConverter}, Mode=OneWay}" />
+											Fill="{Binding FileTagsUI[0].Color, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}"
+											ToolTipService.ToolTip="{Binding FileTagsUI[0].Name, Mode=OneWay}"
+											Visibility="{Binding FileTagsUI, Converter={StaticResource EmptyObjectToObjectConverter}, Mode=OneWay}" />
 
 										<!--  Open Folder Chevron  -->
 										<FontIcon
 											x:Name="OpenFolderChevron"
 											HorizontalAlignment="Right"
 											VerticalAlignment="Center"
-											x:Load="{x:Bind IsFolder}"
+											x:Load="{x:Bind IsFolder, Mode=OneWay}"
 											FontSize="12"
 											Foreground="{ThemeResource TextFillColorSecondaryBrush}"
 											Glyph="&#xE76C;" />
@@ -361,7 +361,7 @@
 									<StackPanel
 										Margin="0,0,0,4"
 										VerticalAlignment="Bottom"
-										AutomationProperties.Name="{x:Bind Model.Text}"
+										AutomationProperties.Name="{Binding Model.Text}"
 										Spacing="0">
 
 										<StackPanel Orientation="Horizontal" Spacing="4">
@@ -370,29 +370,29 @@
 												VerticalAlignment="Center"
 												FontSize="16"
 												Style="{StaticResource SubtitleTextBlockStyle}"
-												Text="{x:Bind Model.Text, Mode=OneWay}" />
+												Text="{Binding Model.Text, Mode=OneWay}" />
 
 											<TextBlock
 												Margin="4,0,0,0"
 												VerticalAlignment="Center"
 												Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-												Text="{x:Bind Model.CountText, Mode=OneWay}"
-												Visibility="{x:Bind Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
+												Text="{Binding Model.CountText, Mode=OneWay}"
+												Visibility="{Binding Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
 
 											<TextBlock
 												VerticalAlignment="Center"
 												FontSize="14"
 												Style="{StaticResource SubheaderTextBlockStyle}"
-												Text="{x:Bind Model.Subtext, Mode=OneWay}"
-												Visibility="{x:Bind Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+												Text="{Binding Model.Subtext, Mode=OneWay}"
+												Visibility="{Binding Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 										</StackPanel>
 
 										<TextBlock
 											Margin="0,2,0,0"
 											Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-											Text="{x:Bind Model.CountText, Mode=OneWay}"
-											Visibility="{x:Bind Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+											Text="{Binding Model.CountText, Mode=OneWay}"
+											Visibility="{Binding Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 									</StackPanel>
 								</DataTemplate>
@@ -413,10 +413,10 @@
 			<SemanticZoom.ZoomedOutView>
 				<ListView
 					HorizontalAlignment="Stretch"
-					ItemsSource="{x:Bind CollectionViewSource.View.CollectionGroups, Mode=OneWay}"
+					ItemsSource="{Binding CollectionViewSource.View.CollectionGroups, ElementName=PageRoot, Mode=OneWay}"
 					SelectionMode="None">
 					<ListView.ItemTemplate>
-						<DataTemplate x:DataType="ICollectionViewGroup">
+						<DataTemplate x:DataType="muxdata:ICollectionViewGroup">
 							<StackPanel
 								Margin="0,4,0,4"
 								VerticalAlignment="Center"
@@ -426,15 +426,15 @@
 								<!--  Group Image  -->
 								<Image
 									Height="36"
-									Source="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ImageSource, Mode=OneWay}"
+									Source="{Binding Group.Model.ImageSource, Mode=OneWay}"
 									Stretch="Uniform" />
 
 								<!--  Group Icon  -->
-								<FontIcon FontSize="32" Glyph="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Icon, Mode=OneWay}" />
+								<FontIcon FontSize="32" Glyph="{Binding Group.Model.Icon, Mode=OneWay}" />
 
 								<StackPanel
 									VerticalAlignment="Center"
-									AutomationProperties.Name="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Text, Mode=OneWay}"
+									AutomationProperties.Name="{Binding Group.Model.Text, Mode=OneWay}"
 									Orientation="Vertical">
 									<StackPanel Orientation="Horizontal" Spacing="4">
 
@@ -443,7 +443,7 @@
 											VerticalAlignment="Center"
 											FontSize="16"
 											Style="{StaticResource SubtitleTextBlockStyle}"
-											Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Text, Mode=OneWay}" />
+											Text="{Binding Group.Model.Text, Mode=OneWay}" />
 
 										<!--  Count  -->
 										<TextBlock
@@ -451,8 +451,8 @@
 											VerticalAlignment="Center"
 											Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
 											Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-											Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.CountText, Mode=OneWay}"
-											Visibility="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
+											Text="{Binding Group.Model.CountText, Mode=OneWay}"
+											Visibility="{Binding Group.Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource NegatedBoolToVisibilityConverter}}" />
 
 										<!--  Subheader  -->
 										<TextBlock
@@ -460,16 +460,16 @@
 											FontSize="14"
 											Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
 											Style="{StaticResource SubheaderTextBlockStyle}"
-											Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.Subtext, Mode=OneWay}"
-											Visibility="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+											Text="{Binding Group.Model.Subtext, Mode=OneWay}"
+											Visibility="{Binding Group.Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 									</StackPanel>
 
 									<TextBlock
 										Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
 										Style="{StaticResource App.Theme.BodyTextBlockStyle}"
-										Text="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.CountText, Mode=OneWay}"
-										Visibility="{x:Bind ((storage:IGroupedCollectionHeader)Group).Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+										Text="{Binding Group.Model.CountText, Mode=OneWay}"
+										Visibility="{Binding Group.Model.ShowCountTextBelow, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
 								</StackPanel>
 

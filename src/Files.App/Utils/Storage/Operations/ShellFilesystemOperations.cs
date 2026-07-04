@@ -1,6 +1,8 @@
 // Copyright (c) Files Community
 // Licensed under the MIT License.
 
+using Files.App.Diagnostics;
+using Files.App.FileOperations;
 using System.IO;
 using Windows.Storage;
 
@@ -12,6 +14,7 @@ namespace Files.App.Utils.Storage
 	public sealed partial class ShellFilesystemOperations : IFilesystemOperations
 	{
 		private readonly IStorageTrashBinService StorageTrashBinService = Ioc.Default.GetRequiredService<IStorageTrashBinService>();
+		private readonly IFilesProCopyQueueService filesProCopyQueueService = Ioc.Default.GetRequiredService<IFilesProCopyQueueService>();
 
 		private IShellPage _associatedInstance;
 
@@ -46,6 +49,10 @@ namespace Files.App.Utils.Storage
 				// Fallback to built-in file operations
 				return await _filesystemOperations.CopyItemsAsync(source, destination, collisions, progress, cancellationToken);
 			}
+
+			var queuedCopy = await TryRunFilesProQueueAsync(FilesProQueuedOperationKind.Copy, source, destination, collisions, progress, cancellationToken, asAdmin);
+			if (queuedCopy.Handled)
+				return queuedCopy.History;
 
 			StatusCenterItemProgressModel fsProgress = new(
 				progress,
@@ -489,6 +496,10 @@ namespace Files.App.Utils.Storage
 				return await _filesystemOperations.MoveItemsAsync(source, destination, collisions, progress, cancellationToken);
 			}
 
+			var queuedMove = await TryRunFilesProQueueAsync(FilesProQueuedOperationKind.Move, source, destination, collisions, progress, cancellationToken, asAdmin);
+			if (queuedMove.Handled)
+				return queuedMove.History;
+
 			StatusCenterItemProgressModel fsProgress = new(
 				progress,
 				true,
@@ -632,6 +643,123 @@ namespace Files.App.Utils.Storage
 				}
 
 				return null;
+			}
+		}
+
+		private async Task<(bool Handled, IStorageHistory? History)> TryRunFilesProQueueAsync(
+			FilesProQueuedOperationKind kind,
+			IList<IStorageItemWithPath> source,
+			IList<string> destination,
+			IList<FileNameConflictResolveOptionType> collisions,
+			IProgress<StatusCenterItemProgressModel> progress,
+			CancellationToken cancellationToken,
+			bool asAdmin)
+		{
+			if (asAdmin || source.Count != destination.Count || source.Count != collisions.Count)
+				return (false, null);
+
+			if (!source.All(item => CanUseFilesProQueuePath(item.Path)) || !destination.All(CanUseFilesProQueuePath))
+				return (false, null);
+
+			var entries = source
+				.Zip(destination, (src, dest) => new { src, dest })
+				.Zip(collisions, (entry, collision) => new { entry.src, entry.dest, collision })
+				.Where(item => item.collision != FileNameConflictResolveOptionType.Skip)
+				.ToArray();
+
+			if (entries.Length == 0)
+				return (true, null);
+
+			var fsProgress = new StatusCenterItemProgressModel(
+				progress,
+				enumerationCompleted: true,
+				FileSystemStatusCode.InProgress,
+				entries.Length);
+			var processedItems = 0;
+
+			var queueProgress = new Progress<FilesProScanProgress>(value =>
+			{
+				fsProgress.FileName = value.CurrentPath;
+				if (value.TotalBytes > 0)
+				{
+					fsProgress.TotalSize = value.TotalBytes > long.MaxValue ? long.MaxValue : (long)value.TotalBytes;
+					fsProgress.SetProcessedSize(value.BytesProcessed > long.MaxValue ? long.MaxValue : (long)value.BytesProcessed);
+				}
+
+				var newProcessedItems = Math.Min(entries.Length, Math.Max(0, value.DirectoriesVisited));
+				if (newProcessedItems > processedItems)
+				{
+					fsProgress.AddProcessedItemsCount(newProcessedItems - processedItems);
+					processedItems = newProcessedItems;
+				}
+
+				fsProgress.Report();
+			});
+
+			var requests = entries
+				.Select(item => new FilesProQueueOperationRequest(
+					kind,
+					item.src.Path,
+					item.dest,
+					Overwrite: item.collision == FileNameConflictResolveOptionType.ReplaceExisting,
+					GenerateUniqueName: item.collision == FileNameConflictResolveOptionType.GenerateNewName))
+				.ToArray();
+
+			var results = await filesProCopyQueueService.EnqueueAsync(requests, queueProgress, cancellationToken);
+			if (processedItems < entries.Length)
+				fsProgress.AddProcessedItemsCount(entries.Length - processedItems);
+
+			var failed = results.FirstOrDefault(item => !item.Succeeded);
+			if (failed is not null)
+			{
+				fsProgress.FileName = failed.SourcePath;
+				fsProgress.ReportStatus(MapFilesProQueueFailure(failed));
+				return (true, null);
+			}
+
+			fsProgress.ReportStatus(FileSystemStatusCode.Success);
+
+			var historyType = kind is FilesProQueuedOperationKind.Move
+				? FileOperationType.Move
+				: FileOperationType.Copy;
+			var historySources = entries.Select(item => item.src).ToList();
+			var historyDestinations = results
+				.Zip(entries, (result, entry) => StorageHelpers.FromPathAndType(result.DestinationPath, entry.src.ItemType))
+				.ToList();
+
+			return (true, new StorageHistory(historyType, historySources, historyDestinations));
+		}
+
+		private static FileSystemStatusCode MapFilesProQueueFailure(FilesProQueueOperationResult result)
+		{
+			if (!File.Exists(result.SourcePath) && !Directory.Exists(result.SourcePath))
+				return FileSystemStatusCode.NotFound;
+			if (File.Exists(result.DestinationPath) || Directory.Exists(result.DestinationPath))
+				return FileSystemStatusCode.AlreadyExists;
+
+			return FileSystemStatusCode.Generic;
+		}
+
+		private static bool CanUseFilesProQueuePath(string path)
+		{
+			if (string.IsNullOrWhiteSpace(path) ||
+				path.StartsWith(@"\\?\", StringComparison.Ordinal) ||
+				path.StartsWith(@"\\", StringComparison.Ordinal) ||
+				FtpHelpers.IsFtpPath(path) ||
+				ZipStorageFolder.IsZipPath(path, false) ||
+				!Path.IsPathFullyQualified(path))
+			{
+				return false;
+			}
+
+			try
+			{
+				_ = Path.GetFullPath(path);
+				return true;
+			}
+			catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+			{
+				return false;
 			}
 		}
 

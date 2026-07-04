@@ -77,6 +77,18 @@ namespace Files.App.Data.Models
 			}
 		}
 
+		private bool isPageTypeFilesPro = false;
+		public bool IsPageTypeFilesPro
+		{
+			get => isPageTypeFilesPro;
+			set
+			{
+				SetProperty(ref isPageTypeFilesPro, value);
+				OnPropertyChanged(nameof(CanCreateFileInPage));
+				OnPropertyChanged(nameof(CanCopyPathInPage));
+			}
+		}
+
 		private bool isPageTypeMtpDevice = false;
 		public bool IsPageTypeMtpDevice
 		{
@@ -148,12 +160,12 @@ namespace Files.App.Data.Models
 
 		public bool CanCopyPathInPage
 		{
-			get => !isPageTypeMtpDevice && !isPageTypeRecycleBin && isPageTypeNotHome && !isPageTypeSearchResults && !IsPageTypeReleaseNotes && !IsPageTypeSettings;
+			get => !isPageTypeMtpDevice && !isPageTypeRecycleBin && isPageTypeNotHome && !isPageTypeSearchResults && !IsPageTypeReleaseNotes && !IsPageTypeSettings && !IsPageTypeFilesPro;
 		}
 
 		public bool CanCreateFileInPage
 		{
-			get => !isPageTypeMtpDevice && !isPageTypeRecycleBin && isPageTypeNotHome && !isPageTypeSearchResults && !isPageTypeFtp && !isPageTypeZipFolder && !IsPageTypeReleaseNotes && !IsPageTypeSettings;
+			get => !isPageTypeMtpDevice && !isPageTypeRecycleBin && isPageTypeNotHome && !isPageTypeSearchResults && !isPageTypeFtp && !isPageTypeZipFolder && !IsPageTypeReleaseNotes && !IsPageTypeSettings && !IsPageTypeFilesPro;
 		}
 
 		public bool CanTagFilesInPage

@@ -451,6 +451,7 @@ namespace Files.App.Views.Layouts
 				ParentShellPageInstance.InstanceViewModel.IsPageTypeSearchResults = false;
 				ParentShellPageInstance.InstanceViewModel.IsPageTypeReleaseNotes = false;
 				ParentShellPageInstance.InstanceViewModel.IsPageTypeSettings = false;
+				ParentShellPageInstance.InstanceViewModel.IsPageTypeFilesPro = false;
 				ParentShellPageInstance.ToolbarViewModel.PathControlDisplayText = navigationArguments.NavPathParam;
 
 				if (ParentShellPageInstance.InstanceViewModel.FolderSettings.DirectorySortOption == SortOption.Path)
@@ -486,6 +487,7 @@ namespace Files.App.Views.Layouts
 				ParentShellPageInstance.InstanceViewModel.IsPageTypeSearchResults = true;
 				ParentShellPageInstance.InstanceViewModel.IsPageTypeReleaseNotes = false;
 				ParentShellPageInstance.InstanceViewModel.IsPageTypeSettings = false;
+				ParentShellPageInstance.InstanceViewModel.IsPageTypeFilesPro = false;
 
 				if (!navigationArguments.IsLayoutSwitch)
 				{

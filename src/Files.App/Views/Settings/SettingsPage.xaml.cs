@@ -31,7 +31,7 @@ namespace Files.App.Views
 			UpdateSidebarVisualState(ActualWidth);
 		}
 
-		protected override async void OnNavigatedTo(NavigationEventArgs e)
+		protected override void OnNavigatedTo(NavigationEventArgs e)
 		{
 			if (e.Parameter is not NavigationArguments navArgs)
 				return;
@@ -50,13 +50,11 @@ namespace Files.App.Views
 			AppInstance.InstanceViewModel.IsGitRepository = false;
 			AppInstance.InstanceViewModel.IsPageTypeReleaseNotes = false;
 			AppInstance.InstanceViewModel.IsPageTypeSettings = true;
+			AppInstance.InstanceViewModel.IsPageTypeFilesPro = false;
 			AppInstance.ToolbarViewModel.CanRefresh = false;
 			AppInstance.ToolbarViewModel.CanGoBack = AppInstance.CanNavigateBackward;
 			AppInstance.ToolbarViewModel.CanGoForward = AppInstance.CanNavigateForward;
 			AppInstance.ToolbarViewModel.CanNavigateToParent = false;
-
-			await AppInstance.ShellViewModel.SetWorkingDirectoryAsync("Settings");
-			AppInstance.ShellViewModel.CheckForBackgroundImage();
 
 			AppInstance.SlimContentPage?.StatusBarViewModel.UpdateGitInfo(false, string.Empty, null);
 			AppInstance.SlimContentPage?.InfoPaneViewModel.UpdateSelectedItemPreviewAsync();
