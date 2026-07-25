@@ -203,6 +203,19 @@
 			Canvas.ZIndex="0"
 			EmptyTextType="{Binding ParentShellPageInstance.ShellViewModel.EmptyTextType, ElementName=PageRoot, Mode=OneWay}" />
 
+		<!--  Location Unavailable Indicator  -->
+		<uc:LocationUnavailableIndicator
+			Title="{x:Bind ParentShellPageInstance.ShellViewModel.LocationUnavailableTitle, Mode=OneWay}"
+			Grid.Row="3"
+			MaxWidth="400"
+			Margin="24,125,24,0"
+			HorizontalAlignment="Center"
+			VerticalAlignment="Top"
+			Canvas.ZIndex="0"
+			Glyph="{x:Bind ParentShellPageInstance.ShellViewModel.LocationUnavailableGlyph, Mode=OneWay}"
+			Message="{x:Bind ParentShellPageInstance.ShellViewModel.LocationUnavailableMessage, Mode=OneWay}"
+			Visibility="{x:Bind ParentShellPageInstance.ShellViewModel.IsLocationUnavailable, Mode=OneWay}" />
+
 		<!--  Invalid Item Name Tip  -->
 		<TeachingTip
 			x:Name="FileNameTeachingTip"
@@ -559,6 +572,23 @@
 								<ColumnDefinition Width="0" />
 
 							</Grid.ColumnDefinitions>
+
+							<!--  Select All Check Box  -->
+							<CheckBox
+								x:Name="SelectAllCheckbox"
+								Grid.Column="0"
+								Width="20"
+								Height="20"
+								MinWidth="0"
+								MinHeight="0"
+								Margin="-4,14,0,0"
+								Padding="0"
+								HorizontalAlignment="Center"
+								VerticalAlignment="Top"
+								AutomationProperties.Name="{helpers:ResourceString Name=SelectAll}"
+								Checked="SelectAllCheckbox_Checked"
+								ToolTipService.ToolTip="{helpers:ResourceString Name=SelectAll}"
+								Unchecked="SelectAllCheckbox_Unchecked" />
 
 							<!--  Item Name  -->
 							<uc:DataGridHeader

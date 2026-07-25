@@ -6,8 +6,6 @@ using Files.Shared.Helpers;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Security.Principal;
-using Tulpep.ActiveDirectoryObjectPicker;
 using Vanara.PInvoke;
 using Vanara.Windows.Shell;
 using Windows.ApplicationModel.DataTransfer;
@@ -471,7 +469,8 @@ namespace Files.App.Utils.Storage
 							Succeeded = false,
 							Source = fileToMovePath[i],
 							Destination = moveDestination[i],
-							HResult = -1
+							// HResult -1 makes the caller retry with the StorageFile API (ADS); a missing source must map to NotFound instead
+							HResult = MainStreamExists(fileToMovePath[i]) ? -1 : CopyEngineResult.COPYENGINE_E_PATH_NOT_FOUND_SRC
 						});
 					}
 				}
@@ -610,7 +609,8 @@ namespace Files.App.Utils.Storage
 							Succeeded = false,
 							Source = fileToCopyPath[i],
 							Destination = copyDestination[i],
-							HResult = -1
+							// HResult -1 makes the caller retry with the StorageFile API (ADS); a missing source must map to NotFound instead
+							HResult = MainStreamExists(fileToCopyPath[i]) ? -1 : CopyEngineResult.COPYENGINE_E_PATH_NOT_FOUND_SRC
 						});
 					}
 				}
@@ -941,38 +941,7 @@ namespace Files.App.Utils.Storage
 		}
 
 		public static Task<string?> OpenObjectPickerAsync(long hWnd)
-		{
-			return STATask.Run(() =>
-			{
-				var picker = new DirectoryObjectPickerDialog()
-				{
-					AllowedObjectTypes = ObjectTypes.All,
-					DefaultObjectTypes = ObjectTypes.Users | ObjectTypes.Groups,
-					AllowedLocations = Locations.All,
-					DefaultLocations = Locations.LocalComputer,
-					MultiSelect = false,
-					ShowAdvancedView = true
-				};
-
-				picker.AttributesToFetch.Add("objectSid");
-
-				using (picker)
-				{
-					if (picker.ShowDialog(Win32Helper.Win32Window.FromLong(hWnd)) == System.Windows.Forms.DialogResult.OK)
-					{
-						try
-						{
-							var attribs = picker.SelectedObject.FetchedAttributes;
-							if (attribs.Any() && attribs[0] is byte[] objectSid)
-								return new SecurityIdentifier(objectSid, 0).Value;
-						}
-						catch { }
-					}
-				}
-
-				return null;
-			}, App.Logger);
-		}
+			=> WindowsObjectPicker.OpenObjectPickerAsync((nint)hWnd, App.Logger);
 
 		private static ShellItem? GetFirstFile(ShellItem shi)
 		{
@@ -1172,6 +1141,17 @@ namespace Files.App.Utils.Storage
 				index++;
 
 			return Path.GetFileName(genFilePath(index));
+		}
+
+		private static bool MainStreamExists(string path)
+		{
+			// Path.Exists is always false for ADS paths (file.txt:stream), so check the main stream's path
+			var fileName = Path.GetFileName(path);
+			var colonIndex = fileName.IndexOf(':');
+			if (colonIndex is not -1)
+				path = path[..(path.Length - fileName.Length + colonIndex)];
+
+			return Path.Exists(path);
 		}
 	}
 }

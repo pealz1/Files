@@ -53,6 +53,12 @@ namespace Files.App.Services.Settings
 			set => Set(value);
 		}
 
+		public int LastSessionSelectedTabIndex
+		{
+			get => Get(-1);
+			set => Set(value);
+		}
+
 		public List<string> LastCrashedTabList
 		{
 			get => Get<List<string>>(null);
@@ -200,6 +206,48 @@ namespace Files.App.Services.Settings
 		public bool ShowFileTagsSection
 		{
 			get => Get(true);
+			set => Set(value);
+		}
+
+		public bool IsPinnedSectionExpanded
+		{
+			get => Get(true);
+			set => Set(value);
+		}
+
+		public bool IsLibrarySectionExpanded
+		{
+			get => Get(false);
+			set => Set(value);
+		}
+
+		public bool IsDriveSectionExpanded
+		{
+			get => Get(true);
+			set => Set(value);
+		}
+
+		public bool IsCloudDriveSectionExpanded
+		{
+			get => Get(true);
+			set => Set(value);
+		}
+
+		public bool IsNetworkSectionExpanded
+		{
+			get => Get(false);
+			set => Set(value);
+		}
+
+		public bool IsWslSectionExpanded
+		{
+			get => Get(false);
+			set => Set(value);
+		}
+
+		public bool IsFileTagsSectionExpanded
+		{
+			get => Get(false);
 			set => Set(value);
 		}
 

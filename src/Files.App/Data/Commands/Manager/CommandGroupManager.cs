@@ -1,5 +1,5 @@
 // Copyright (c) Files Community
-// Licensed under the MIT License.
+// SPDX-License-Identifier: MPL-2.0
 
 namespace Files.App.Data.Commands;
 
@@ -86,6 +86,31 @@ internal sealed class NewItemCommandGroup : CommandGroup
 		CommandCodes.CreateFolder,
 		CommandCodes.CreateFile,
 		CommandCodes.CreateShortcutFromDialog,
+	];
+}
+
+internal sealed class OpenWithCommandGroup : CommandGroup
+{
+	public override string Name => "OpenWith";
+
+	public override string DisplayName
+		=> Strings.OpenWith.GetLocalizedResource();
+
+	public override string Description
+		=> Strings.OpenItemWithApplicationPickerDescription.GetLocalizedFormatResource(1);
+
+	public override RichGlyph Glyph
+		=> new(themedIconStyle: "App.ThemedIcons.OpenWith");
+
+	public override string AccessKey
+		=> "O";
+
+	public override ActionCategory Category
+		=> ActionCategory.Open;
+
+	public override IReadOnlyList<CommandCodes> Commands =>
+	[
+		CommandCodes.OpenItemWithApplicationPicker,
 	];
 }
 

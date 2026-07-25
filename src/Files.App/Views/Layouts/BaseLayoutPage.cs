@@ -70,6 +70,8 @@ namespace Files.App.Views.Layouts
 		private bool shiftPressed;
 		private bool itemDragging;
 
+		protected bool isDraggingSelectionRectangle;
+
 		private ListedItem? dragOverItem = null;
 		private ListedItem? hoveredItem = null;
 		private ListedItem? preRenamingItem = null;
@@ -282,8 +284,15 @@ namespace Files.App.Views.Layouts
 
 					NotifyPropertyChanged(nameof(SelectedItems));
 				}
-				ParentShellPageInstance!.ToolbarViewModel.SelectedItems = value;
+				if (!isDraggingSelectionRectangle)
+					ParentShellPageInstance!.ToolbarViewModel.SelectedItems = value;
 			}
+		}
+
+		protected void FlushSelectionToToolbar()
+		{
+			if (ParentShellPageInstance is not null)
+				ParentShellPageInstance.ToolbarViewModel.SelectedItems = selectedItems;
 		}
 
 		// Constructor
@@ -390,12 +399,16 @@ namespace Files.App.Views.Layouts
 				}
 
 				ParentShellPageInstance.ShellViewModel.UpdateEmptyTextType();
+				ParentShellPageInstance.ShellViewModel.UpdateNetworkAvailabilityInfoBar();
 
 				// Focus on the active pane in case it was lost during the layout switch.
 				// Allthough the focus is also set from SetSelectedItemsOnNavigation,
 				// that is only called when switching between a Grid based layout and Details,
 				// not between different Grid based layouts (eg. List and Cards).
-				ParentShellPageInstance!.PaneHolder.FocusActivePane();
+				// Adaptive layout fires this handler on folder-load completion - skip the focus
+				// restore so an in-progress omnibar query isn't lost.
+				if (!UIHelpers.IsTextInputFocused(XamlRoot))
+					ParentShellPageInstance!.PaneHolder.FocusActivePane();
 			}
 		}
 
@@ -544,12 +557,18 @@ namespace Files.App.Views.Layouts
 					];
 
 					ItemManipulationModel.SetSelectedItems(listedItemsToSelect);
-					ItemManipulationModel.FocusSelectedItems();
+
+					// Invoked as a post-load callback that can fire long after navigation if the folder
+					// is slow to enumerate; by then the user may be typing into the omnibar - don't yank
+					// focus away. The omnibar also cancels programmatic LosingFocus moves, but its
+					// FocusSelectedItems path uses FocusState.Keyboard which slips past that guard.
+					if (!UIHelpers.IsTextInputFocused(XamlRoot))
+						ItemManipulationModel.FocusSelectedItems();
 				}
 				else if (navigationArguments is not null && ParentShellPageInstance!.InstanceViewModel.FolderSettings.LayoutMode is not FolderLayoutModes.ColumnView)
 				{
-					// Focus on the active pane in case it was lost during navigation
-					ParentShellPageInstance!.PaneHolder.FocusActivePane();
+					if (!UIHelpers.IsTextInputFocused(XamlRoot))
+						ParentShellPageInstance!.PaneHolder.FocusActivePane();
 				}
 			}
 			catch (Exception) { }

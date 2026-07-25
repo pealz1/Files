@@ -44,6 +44,7 @@ namespace Files.App.ViewModels.UserControls
 		private string? _dragOverPath;
 		private bool _lockFlag;
 		private PointerRoutedEventArgs? _pointerRoutedEventArgs;
+		private CancellationTokenSource _suggestSearchCTS = new();
 
 		// Events
 
@@ -581,7 +582,7 @@ namespace Files.App.ViewModels.UserControls
 					var matchingDrive = drivesViewModel.Drives.Cast<DriveItem>().FirstOrDefault(x => PathNormalization.NormalizePath(normalizedInput).StartsWith(PathNormalization.NormalizePath(x.Path), StringComparison.Ordinal));
 					if (matchingDrive is not null && matchingDrive.Type == Data.Items.DriveType.CDRom && matchingDrive.MaxSpace == ByteSizeLib.ByteSize.FromBytes(0))
 					{
-						bool ejectButton = await DialogDisplayHelper.ShowDialogAsync(Strings.InsertDiscDialog_Title.GetLocalizedResource(), string.Format(Strings.InsertDiscDialog_Text.GetLocalizedResource(), matchingDrive.Path), Strings.InsertDiscDialog_OpenDriveButton.GetLocalizedResource(), Strings.Close.GetLocalizedResource());
+						bool ejectButton = await DialogDisplayHelper.ShowDialogAsync(Strings.InsertDiscDialogTitle.GetLocalizedResource(), string.Format(Strings.InsertDiscDialogText.GetLocalizedResource(), matchingDrive.Path), Strings.InsertDiscDialog_OpenDriveButton.GetLocalizedResource(), Strings.Close.GetLocalizedResource());
 						if (ejectButton)
 							DriveHelpers.EjectDeviceAsync(matchingDrive.Path);
 						return;
@@ -854,7 +855,7 @@ namespace Files.App.ViewModels.UserControls
 						var matchingDrive = drivesViewModel.Drives.Cast<DriveItem>().FirstOrDefault(x => PathNormalization.NormalizePath(normalizedInput).StartsWith(PathNormalization.NormalizePath(x.Path), StringComparison.Ordinal));
 						if (matchingDrive is not null && matchingDrive.Type == Data.Items.DriveType.CDRom && matchingDrive.MaxSpace == ByteSizeLib.ByteSize.FromBytes(0))
 						{
-							bool ejectButton = await DialogDisplayHelper.ShowDialogAsync(Strings.InsertDiscDialog_Title.GetLocalizedResource(), string.Format(Strings.InsertDiscDialog_Text.GetLocalizedResource(), matchingDrive.Path), Strings.InsertDiscDialog_OpenDriveButton.GetLocalizedResource(), Strings.Close.GetLocalizedResource());
+							bool ejectButton = await DialogDisplayHelper.ShowDialogAsync(Strings.InsertDiscDialogTitle.GetLocalizedResource(), string.Format(Strings.InsertDiscDialogText.GetLocalizedResource(), matchingDrive.Path), Strings.InsertDiscDialog_OpenDriveButton.GetLocalizedResource(), Strings.Close.GetLocalizedResource());
 							if (ejectButton)
 								DriveHelpers.EjectDeviceAsync(matchingDrive.Path);
 							return;
@@ -1104,37 +1105,16 @@ namespace Files.App.ViewModels.UserControls
 				});
 			}
 
-			if (!OmnibarCommandPaletteModeSuggestionItems.IntersectBy(newSuggestions, x => x.PrimaryDisplay).Any())
+			for (int index = 0; index < newSuggestions.Count; index++)
 			{
-				for (int index = 0; index < newSuggestions.Count; index++)
-				{
-					if (index < OmnibarCommandPaletteModeSuggestionItems.Count)
-						OmnibarCommandPaletteModeSuggestionItems[index] = newSuggestions[index];
-					else
-						OmnibarCommandPaletteModeSuggestionItems.Add(newSuggestions[index]);
-				}
-
-				while (OmnibarCommandPaletteModeSuggestionItems.Count > newSuggestions.Count)
-					OmnibarCommandPaletteModeSuggestionItems.RemoveAt(OmnibarCommandPaletteModeSuggestionItems.Count - 1);
+				if (index < OmnibarCommandPaletteModeSuggestionItems.Count)
+					OmnibarCommandPaletteModeSuggestionItems[index] = newSuggestions[index];
+				else
+					OmnibarCommandPaletteModeSuggestionItems.Add(newSuggestions[index]);
 			}
-			else
-			{
-				foreach (var s in OmnibarCommandPaletteModeSuggestionItems.ExceptBy(newSuggestions, x => x.PrimaryDisplay).ToList())
-					OmnibarCommandPaletteModeSuggestionItems.Remove(s);
 
-				for (int index = 0; index < newSuggestions.Count; index++)
-				{
-					if (OmnibarCommandPaletteModeSuggestionItems.Count > index
-						&& OmnibarCommandPaletteModeSuggestionItems[index].PrimaryDisplay == newSuggestions[index].PrimaryDisplay)
-					{
-						OmnibarCommandPaletteModeSuggestionItems[index] = newSuggestions[index];
-					}
-					else
-					{
-						OmnibarCommandPaletteModeSuggestionItems.Insert(index, newSuggestions[index]);
-					}
-				}
-			}
+			while (OmnibarCommandPaletteModeSuggestionItems.Count > newSuggestions.Count)
+				OmnibarCommandPaletteModeSuggestionItems.RemoveAt(OmnibarCommandPaletteModeSuggestionItems.Count - 1);
 		}
 
 		public async Task PopulateOmnibarSuggestionsForSearchMode()
@@ -1148,6 +1128,10 @@ namespace Files.App.ViewModels.UserControls
 				return;
 			}
 
+			_suggestSearchCTS.Cancel();
+			_suggestSearchCTS = new CancellationTokenSource();
+			var token = _suggestSearchCTS.Token;
+
 			List<SuggestionModel> newSuggestions = [];
 
 			if (string.IsNullOrWhiteSpace(OmnibarSearchModeText))
@@ -1158,16 +1142,29 @@ namespace Files.App.ViewModels.UserControls
 			}
 			else
 			{
-				var search = new FolderSearch
+				try
 				{
-					Query = OmnibarSearchModeText,
-					Folder = ContentPageContext.ShellPage.ShellViewModel.WorkingDirectory,
-					MaxItemCount = 10,
-				};
+					await Task.Delay(200, token);
 
-				var results = await search.SearchAsync();
-				newSuggestions.AddRange(results.Select(result => new SuggestionModel(result)));
+					var search = new FolderSearch
+					{
+						Query = OmnibarSearchModeText,
+						Folder = ContentPageContext.ShellPage.ShellViewModel.WorkingDirectory,
+						MaxItemCount = 10,
+					};
+
+					var results = new List<ListedItem>();
+					await search.SearchAsync(results, token);
+					newSuggestions.AddRange(results.Select(result => new SuggestionModel(result)));
+				}
+				catch (OperationCanceledException)
+				{
+					return;
+				}
 			}
+
+			if (token.IsCancellationRequested)
+				return;
 
 			// Remove outdated suggestions
 			var toRemove = OmnibarSearchModeSuggestionItems
@@ -1179,7 +1176,7 @@ namespace Files.App.ViewModels.UserControls
 
 			// Add new suggestions
 			var toAdd = newSuggestions
-				.Where(newItem => !OmnibarSearchModeSuggestionItems.Any(existing => existing.Name == newItem.Name));
+				.Where(newItem => !OmnibarSearchModeSuggestionItems.Any(existing => existing.ItemPath == newItem.ItemPath));
 
 			foreach (var item in toAdd)
 				OmnibarSearchModeSuggestionItems.Add(item);
@@ -1232,10 +1229,17 @@ namespace Files.App.ViewModels.UserControls
 			}
 		}
 
+		public void CancelSuggestionSearch()
+		{
+			_suggestSearchCTS.Cancel();
+		}
+
 		// Disposer
 
 		public void Dispose()
 		{
+			_suggestSearchCTS.Cancel();
+			_suggestSearchCTS.Dispose();
 			UserSettingsService.OnSettingChangedEvent -= UserSettingsService_OnSettingChangedEvent;
 		}
 	}

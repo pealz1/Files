@@ -8,7 +8,6 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System.IO;
 using Windows.Storage;
@@ -30,8 +29,6 @@ namespace Files.App.Views.Layouts
 		private ColumnsLayoutPage? columnsOwner;
 
 		private ListViewItem? openedFolderPresenter;
-
-		private bool isDraggingSelectionRectangle = false;
 
 		// Tracks the most recent pointer device that interacted with the FileList,
 		// so SelectionChanged (which has no PointerDeviceType of its own) can honor input-method-aware single-click settings.
@@ -90,6 +87,19 @@ namespace Files.App.Views.Layouts
 			doubleClickTimer = DispatcherQueue.CreateTimer();
 		}
 
+		private void SetOpenedFolder(ListViewItem? lvi)
+		{
+			SetRowStyle(openedFolderPresenter, null);
+			openedFolderPresenter = lvi;
+			SetRowStyle(openedFolderPresenter, this.Resources["PathTracedRowStyle"] as Style);
+		}
+
+		private static void SetRowStyle(ListViewItem? lvi, Style? style)
+		{
+			if (lvi?.FindDescendant<Grid>() is Grid row)
+				row.Style = style;
+		}
+
 		// Methods
 
 		private void OnItemLoadStatusChanged(object sender, ItemLoadStatusChangedEventArgs args)
@@ -119,19 +129,10 @@ namespace Files.App.Views.Layouts
 
 		private void ColumnViewBase_ItemInvoked(object? sender, EventArgs e)
 		{
-			ClearOpenedFolderSelectionIndicator();
-			openedFolderPresenter = FileList.ContainerFromItem(FileList.SelectedItem) as ListViewItem;
+			SetOpenedFolder(FileList.ContainerFromItem(FileList.SelectedItem) as ListViewItem);
 		}
 
-		internal void ClearOpenedFolderSelectionIndicator()
-		{
-			if (openedFolderPresenter is null)
-				return;
-
-			openedFolderPresenter.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-			SetFolderBackground(openedFolderPresenter, new SolidColorBrush(Microsoft.UI.Colors.Transparent));
-			openedFolderPresenter = null;
-		}
+		internal void ClearOpenedFolderSelectionIndicator() => SetOpenedFolder(null);
 
 		protected override void ItemManipulationModel_ScrollIntoViewInvoked(object? sender, ListedItem e)
 		{
@@ -198,9 +199,7 @@ namespace Files.App.Views.Layouts
 			if (args.Item is ListedItem item && columnsOwner?.OwnerPath is string ownerPath
 				&& (ownerPath == item.ItemPath || (ownerPath.Length > item.ItemPath.Length && ownerPath.StartsWith(item.ItemPath) && ownerPath[item.ItemPath.Length] is '/' or '\\')))
 			{
-				SetFolderBackground(args.ItemContainer as ListViewItem, this.Resources["ListViewItemBackgroundSelected"] as SolidColorBrush);
-
-				openedFolderPresenter = FileList.ContainerFromItem(item) as ListViewItem;
+				SetOpenedFolder(FileList.ContainerFromItem(item) as ListViewItem);
 				FileList.ContainerContentChanging -= HighlightPathDirectory;
 			}
 		}
@@ -339,11 +338,6 @@ namespace Files.App.Views.Layouts
 		{
 			if (e.AddedItems.Count > 0)
 				columnsOwner?.HandleSelectionChange(this);
-
-			if (e.RemovedItems.Count > 0 && openedFolderPresenter != null)
-			{
-				SetFolderBackground(openedFolderPresenter, this.Resources["ListViewItemBackgroundSelected"] as SolidColorBrush);
-			}
 
 			if (SelectedItems?.Count == 1 && SelectedItem?.PrimaryItemAttribute is StorageItemTypes.Folder)
 			{
@@ -679,7 +673,6 @@ namespace Files.App.Views.Layouts
 
 		protected override void SelectionRectangle_SelectionEnded(object? sender, EventArgs e)
 		{
-			isDraggingSelectionRectangle = false;
 			// Open selected folder (if only one folder is selected) after the user finishes dragging the selection rectangle
 			if (SelectedItems?.Count is 1
 				&& SelectedItem is not null
@@ -689,27 +682,11 @@ namespace Files.App.Views.Layouts
 			base.SelectionRectangle_SelectionEnded(sender, e);
 		}
 
-		private void SelectionRectangle_SelectionStarted(object sender, EventArgs e)
-		{
-			isDraggingSelectionRectangle = true;
-		}
-
 		internal void ClearSelectionIndicator()
 		{
 			LockPreviewPaneContent = true;
 			FileList.SelectedItem = null;
 			LockPreviewPaneContent = false;
-		}
-
-		private static void SetFolderBackground(ListViewItem? lvi, SolidColorBrush? backgroundColor)
-		{
-			if (lvi == null || backgroundColor == null) return;
-
-
-			if (lvi.FindDescendant<Grid>() is Grid presenter)
-			{
-				presenter.Background = backgroundColor;
-			}
 		}
 	}
 }

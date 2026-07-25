@@ -8,47 +8,35 @@ namespace Files.Shared.Helpers;
 
 public sealed class AsyncManualResetEvent
 {
-	private volatile TaskCompletionSource<bool> m_tcs = new TaskCompletionSource<bool>();
+	private volatile TaskCompletionSource<bool> m_tcs = CreateTaskCompletionSource();
 
-	public async Task WaitAsync(CancellationToken cancellationToken = default)
+	public Task WaitAsync(CancellationToken cancellationToken = default)
 	{
-		var tcs = m_tcs;
-		var cancelTcs = new TaskCompletionSource<bool>();
-
-		cancellationToken.Register(
-			s => ((TaskCompletionSource<bool>)s!).TrySetCanceled(), cancelTcs);
-
-		await await Task.WhenAny(tcs.Task, cancelTcs.Task);
-	}
-
-	private async Task<bool> Delay(int milliseconds)
-	{
-		await Task.Delay(milliseconds);
-		return false;
+		return m_tcs.Task.WaitAsync(cancellationToken);
 	}
 
 	public async Task<bool> WaitAsync(int milliseconds, CancellationToken cancellationToken = default)
 	{
-		var tcs = m_tcs;
-		var cancelTcs = new TaskCompletionSource<bool>();
+		var signalTask = m_tcs.Task;
+		if (signalTask.IsCompleted)
+			return await signalTask.ConfigureAwait(false);
 
-		cancellationToken.Register(
-			s => ((TaskCompletionSource<bool>)s!).TrySetCanceled(), cancelTcs);
+		var timeoutTask = Task.Delay(milliseconds, cancellationToken);
+		if (await Task.WhenAny(signalTask, timeoutTask).ConfigureAwait(false) == signalTask)
+			return await signalTask.ConfigureAwait(false);
 
-		return await await Task.WhenAny(tcs.Task, cancelTcs.Task, Delay(milliseconds));
+		await timeoutTask.ConfigureAwait(false);
+		return false;
 	}
 
 	public void Set()
 	{
-		var tcs = m_tcs;
-		Task.Factory.StartNew(s => ((TaskCompletionSource<bool>)s!).TrySetResult(true),
-			tcs, CancellationToken.None, TaskCreationOptions.PreferFairness, TaskScheduler.Default);
-		tcs.Task.Wait();
+		m_tcs.TrySetResult(true);
 	}
 
 	public void Reset()
 	{
-		var newTcs = new TaskCompletionSource<bool>();
+		var newTcs = CreateTaskCompletionSource();
 		while (true)
 		{
 			var tcs = m_tcs;
@@ -56,5 +44,10 @@ public sealed class AsyncManualResetEvent
 				Interlocked.CompareExchange(ref m_tcs, newTcs, tcs) == tcs)
 				return;
 		}
+	}
+
+	private static TaskCompletionSource<bool> CreateTaskCompletionSource()
+	{
+		return new(TaskCreationOptions.RunContinuationsAsynchronously);
 	}
 }

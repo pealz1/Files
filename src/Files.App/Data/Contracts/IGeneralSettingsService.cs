@@ -41,6 +41,11 @@ namespace Files.App.Data.Contracts
 		List<string> LastSessionTabList { get; set; }
 
 		/// <summary>
+		/// Gets or sets the index of the tab that was active when the last session ended.
+		/// </summary>
+		int LastSessionSelectedTabIndex { get; set; }
+
+		/// <summary>
 		/// A list containing paths of the tabs from the previous session that crashed.
 		/// </summary>
 		List<string> LastCrashedTabList { get; set; }
@@ -164,6 +169,41 @@ namespace Files.App.Data.Contracts
 		/// Gets or sets a value indicating if the tags section should be visible.
 		/// </summary>
 		bool ShowFileTagsSection { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the pinned section should be expanded.
+		/// </summary>
+		bool IsPinnedSectionExpanded { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the library section should be expanded.
+		/// </summary>
+		bool IsLibrarySectionExpanded { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the drive section should be expanded.
+		/// </summary>
+		bool IsDriveSectionExpanded { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the cloud drive section should be expanded.
+		/// </summary>
+		bool IsCloudDriveSectionExpanded { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the network section should be expanded.
+		/// </summary>
+		bool IsNetworkSectionExpanded { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the wsl section should be expanded.
+		/// </summary>
+		bool IsWslSectionExpanded { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if the file tags section should be expanded.
+		/// </summary>
+		bool IsFileTagsSectionExpanded { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether or not to move shell extensions into a sub menu.

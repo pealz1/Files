@@ -7,6 +7,7 @@ using Files.App.Cleanup;
 using Files.App.FileOperations;
 using Files.App.Indexing;
 using Files.App.ProjectDiscovery;
+using Files.App.Services.Git;
 using Files.App.Services.SizeProvider;
 using Files.App.StorageAnalysis;
 using Files.App.Utils.Logger;
@@ -191,8 +192,8 @@ namespace Files.App.Helpers
 				options.AutoSessionTracking = true;
 				var packageVersion = Package.Current.Id.Version;
 				options.Release = $"{packageVersion.Major}.{packageVersion.Minor}.{packageVersion.Build}";
-				options.TracesSampleRate = 0.80;
-				options.ProfilesSampleRate = 0.40;
+				options.TracesSampleRate = 0.10;
+				options.ProfilesSampleRate = 0.05;
 				options.Environment = AppEnvironment == AppEnvironment.StorePreview || AppEnvironment == AppEnvironment.SideloadPreview ? "preview" : "production";
 
 				options.DisableWinUiUnhandledExceptionIntegration();
@@ -278,6 +279,7 @@ namespace Files.App.Helpers
 					.AddSingleton<IEverythingSearchService, EverythingSearchService>()
 					.AddSingleton<IFilesProCopyQueueService, FilesProCopyQueueService>()
 					.AddSingleton<ICommandPaletteService, CommandPaletteService>()
+					.AddSingleton</*IVersionControlService,*/ LibGit2Service>()
 					// ViewModels
 					.AddSingleton<MainPageViewModel>()
 					.AddSingleton<InfoPaneViewModel>()
@@ -333,6 +335,8 @@ namespace Files.App.Helpers
 				}
 			})
 			.ToList();
+
+			userSettingsService.GeneralSettingsService.LastSessionSelectedTabIndex = App.AppModel.TabStripSelectedIndex;
 		}
 
 		/// <summary>

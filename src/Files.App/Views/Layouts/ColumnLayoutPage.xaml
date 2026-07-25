@@ -149,6 +149,10 @@
 			<Setter Property="Padding" Value="4,0" />
 		</Style>
 
+		<Style x:Key="PathTracedRowStyle" TargetType="Grid">
+			<Setter Property="Background" Value="{ThemeResource ListViewItemBackgroundSelected}" />
+		</Style>
+
 	</local:BaseGroupableLayoutPage.Resources>
 
 	<Grid x:Name="RootGrid" ContextFlyout="{Binding BaseContextMenuFlyout, ElementName=PageRoot, Mode=OneWay}">
@@ -159,6 +163,17 @@
 			VerticalAlignment="Center"
 			Canvas.ZIndex="0"
 			EmptyTextType="{Binding ParentShellPageInstance.ShellViewModel.EmptyTextType, ElementName=PageRoot, Mode=OneWay}" />
+
+		<!--  Location Unavailable Indicator  -->
+		<uc:LocationUnavailableIndicator
+			Title="{x:Bind ParentShellPageInstance.ShellViewModel.LocationUnavailableTitle, Mode=OneWay}"
+			Margin="12,0"
+			HorizontalAlignment="Center"
+			VerticalAlignment="Center"
+			Canvas.ZIndex="0"
+			Glyph="{x:Bind ParentShellPageInstance.ShellViewModel.LocationUnavailableGlyph, Mode=OneWay}"
+			Message="{x:Bind ParentShellPageInstance.ShellViewModel.LocationUnavailableMessage, Mode=OneWay}"
+			Visibility="{x:Bind ParentShellPageInstance.ShellViewModel.IsLocationUnavailable, Mode=OneWay}" />
 
 		<!--  Invalid Item Name Tip  -->
 		<TeachingTip

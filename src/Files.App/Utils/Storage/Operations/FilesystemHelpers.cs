@@ -315,7 +315,8 @@ namespace Files.App.Utils.Storage
 
 			IStorageHistory history = await filesystemOperations.CopyItemsAsync((IList<IStorageItemWithPath>)source, (IList<string>)destination, collisions, banner.ProgressEventSource, token);
 
-			banner.Progress.ReportStatus(FileSystemStatusCode.Success);
+			if (returnStatus == ReturnResult.InProgress || returnStatus == ReturnResult.Success)
+				banner.Progress.ReportStatus(FileSystemStatusCode.Success);
 
 			if (registerHistory && history is not null && source.Any((item) => !string.IsNullOrWhiteSpace(item.Path)))
 			{
@@ -565,7 +566,7 @@ namespace Files.App.Utils.Storage
 						UserSettingsService.FoldersSettingsService.ShowFileExtensionWarning
 					)
 					{
-						var yesSelected = await DialogDisplayHelper.ShowDialogAsync(Strings.Rename.GetLocalizedResource(), Strings.RenameFileDialog_Text.GetLocalizedResource(), Strings.Yes.GetLocalizedResource(), Strings.No.GetLocalizedResource());
+						var yesSelected = await DialogDisplayHelper.ShowDialogAsync(Strings.Rename.GetLocalizedResource(), Strings.RenameFileDialogText.GetLocalizedResource(), Strings.Yes.GetLocalizedResource(), Strings.No.GetLocalizedResource());
 						if (yesSelected)
 						{
 							history = await filesystemOperations.RenameAsync(source, newName, collision, progress, cancellationToken);
