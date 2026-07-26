@@ -76,6 +76,7 @@ namespace Files.App.ViewModels.UserControls
 		private int applyingTabStateDepth;
 		private bool tabTrackingInitialized;
 		private MainPageViewModel? mainPageViewModel;
+		private int tabExpansionApplyVersion;
 		private MainPageViewModel ResolveMainPageViewModel() => mainPageViewModel ??= Ioc.Default.GetRequiredService<MainPageViewModel>();
 
 		private bool IsApplyingTabState => applyingTabStateDepth > 0;
@@ -133,7 +134,12 @@ namespace Files.App.ViewModels.UserControls
 			if (ReferenceEquals(newTab, currentTab))
 				return;
 			currentTab = newTab;
-			ApplyTabExpansionState();
+			var applyVersion = Interlocked.Increment(ref tabExpansionApplyVersion);
+			dispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+			{
+				if (applyVersion == tabExpansionApplyVersion && ReferenceEquals(currentTab, newTab))
+					ApplyTabExpansionState();
+			});
 		}
 
 		private void AppInstances_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

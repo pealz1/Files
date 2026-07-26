@@ -41,8 +41,10 @@ namespace Files.App.ViewModels
 		private readonly ConcurrentQueue<(uint Action, string FileName)> operationQueue;
 		private readonly ConcurrentQueue<uint> gitChangesQueue;
 		private readonly ConcurrentDictionary<string, bool> itemLoadQueue;
-		private readonly AsyncManualResetEvent operationEvent;
-		private readonly AsyncManualResetEvent gitChangedEvent;
+		private readonly AsyncCoalescingSignal operationEvent;
+		private readonly AsyncCoalescingSignal gitChangedEvent;
+		private readonly List<CancellationTokenRegistration> watcherCancellationRegistrations;
+		private readonly object watcherCancellationLock = new();
 		private readonly DispatcherQueue dispatcherQueue;
 		private readonly JsonElement defaultJson = JsonSerializer.SerializeToElement("{}");
 		private readonly string folderTypeTextLocalized = Strings.Folder.GetLocalizedResource();
@@ -721,8 +723,9 @@ namespace Files.App.ViewModels
 			semaphoreCTS = new CancellationTokenSource();
 			loadPropsCTS = new CancellationTokenSource();
 			watcherCTS = new CancellationTokenSource();
-			operationEvent = new AsyncManualResetEvent();
-			gitChangedEvent = new AsyncManualResetEvent();
+			operationEvent = new AsyncCoalescingSignal();
+			gitChangedEvent = new AsyncCoalescingSignal();
+			watcherCancellationRegistrations = [];
 			enumFolderSemaphore = new SemaphoreSlim(1, 1);
 			getFileOrFolderSemaphore = new SemaphoreSlim(50);
 			bulkOperationSemaphore = new SemaphoreSlim(1, 1);
@@ -2002,10 +2005,42 @@ namespace Files.App.ViewModels
 			watcher?.Dispose();
 			watcher = null;
 
+			CancellationTokenSource previousWatcherCts;
+			CancellationTokenRegistration[] previousRegistrations;
+			lock (watcherCancellationLock)
+			{
+				previousWatcherCts = watcherCTS;
+				watcherCTS = new CancellationTokenSource();
+				previousRegistrations = [.. watcherCancellationRegistrations];
+				watcherCancellationRegistrations.Clear();
+			}
+
 			aProcessQueueAction = null;
 			gitProcessQueueAction = null;
-			watcherCTS?.Cancel();
-			watcherCTS = new CancellationTokenSource();
+			previousWatcherCts.Cancel();
+			foreach (var registration in previousRegistrations)
+				registration.Dispose();
+			previousWatcherCts.Dispose();
+
+			operationQueue.Clear();
+			gitChangesQueue.Clear();
+			operationEvent.Reset();
+			gitChangedEvent.Reset();
+		}
+
+		private void RegisterWatcherCancellation(CancellationToken cancellationToken, Action callback)
+		{
+			var belongsToActiveWatcher = false;
+			lock (watcherCancellationLock)
+			{
+				belongsToActiveWatcher = cancellationToken == watcherCTS.Token && !cancellationToken.IsCancellationRequested;
+				if (belongsToActiveWatcher)
+					watcherCancellationRegistrations.Add(cancellationToken.Register(callback));
+			}
+
+			// Avoid running arbitrary watcher cleanup while holding the registration lock.
+			if (!belongsToActiveWatcher)
+				callback();
 		}
 
 		private async Task<int> EnumerateItemsFromStandardFolderAsync(string path, CancellationToken cancellationToken, LibraryItem? library = null)
@@ -2429,36 +2464,40 @@ namespace Files.App.ViewModels
 		{
 			if (rootFolder is null)
 				return;
+			var cancellationToken = watcherCTS.Token;
 
-			await Task.Factory.StartNew(() =>
+			try
 			{
-				var options = new QueryOptions()
+				await Task.Run(() =>
 				{
-					FolderDepth = FolderDepth.Shallow,
-					IndexerOption = IndexerOption.OnlyUseIndexerAndOptimizeForIndexedProperties
-				};
-
-				options.SetPropertyPrefetch(PropertyPrefetchOptions.None, null);
-				options.SetThumbnailPrefetch(ThumbnailMode.ListView, 0, ThumbnailOptions.ReturnOnlyIfCached);
-
-				if (rootFolder.AreQueryOptionsSupported(options))
-				{
-					var itemQueryResult = rootFolder.CreateItemQueryWithOptions(options).ToStorageItemQueryResult();
-					itemQueryResult.ContentsChanged += ItemQueryResult_ContentsChanged;
-
-					// Just get one item to start getting notifications
-					var watchedItemsOperation = itemQueryResult.GetItemsAsync(0, 1);
-
-					watcherCTS.Token.Register(() =>
+					var options = new QueryOptions()
 					{
-						itemQueryResult.ContentsChanged -= ItemQueryResult_ContentsChanged;
-						watchedItemsOperation?.Cancel();
-					});
-				}
-			},
-			default,
-			TaskCreationOptions.LongRunning,
-			TaskScheduler.Default);
+						FolderDepth = FolderDepth.Shallow,
+						IndexerOption = IndexerOption.OnlyUseIndexerAndOptimizeForIndexedProperties
+					};
+
+					options.SetPropertyPrefetch(PropertyPrefetchOptions.None, null);
+					options.SetThumbnailPrefetch(ThumbnailMode.ListView, 0, ThumbnailOptions.ReturnOnlyIfCached);
+
+					if (rootFolder.AreQueryOptionsSupported(options))
+					{
+						var itemQueryResult = rootFolder.CreateItemQueryWithOptions(options).ToStorageItemQueryResult();
+						itemQueryResult.ContentsChanged += ItemQueryResult_ContentsChanged;
+
+						// Just get one item to start getting notifications
+						var watchedItemsOperation = itemQueryResult.GetItemsAsync(0, 1);
+
+						RegisterWatcherCancellation(cancellationToken, () =>
+						{
+							itemQueryResult.ContentsChanged -= ItemQueryResult_ContentsChanged;
+							watchedItemsOperation?.Cancel();
+						});
+					}
+				}, cancellationToken);
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+			}
 		}
 
 		private void WatchForWin32FolderChanges(string? folderPath)
@@ -2522,9 +2561,9 @@ namespace Files.App.ViewModels
 				return;
 
 			var hasSyncStatus = syncStatus != CloudDriveSyncStatus.NotSynced && syncStatus != CloudDriveSyncStatus.Unknown;
+			var cancellationToken = watcherCTS.Token;
 
-			aProcessQueueAction ??= Task.Factory.StartNew(() => ProcessOperationQueueAsync(watcherCTS.Token, hasSyncStatus), default,
-				TaskCreationOptions.LongRunning, TaskScheduler.Default);
+			aProcessQueueAction ??= ProcessOperationQueueAsync(cancellationToken, hasSyncStatus);
 
 			var aWatcherAction = Windows.System.Threading.ThreadPool.RunAsync((x) =>
 			{
@@ -2601,12 +2640,10 @@ namespace Files.App.ViewModels
 					}
 				}
 
-				operationQueue.Clear();
-
 				Debug.WriteLine("aWatcherAction done: {0}", rand);
 			});
 
-			watcherCTS.Token.Register(() =>
+			RegisterWatcherCancellation(cancellationToken, () =>
 			{
 				if (aWatcherAction is not null)
 				{
@@ -2636,9 +2673,9 @@ namespace Files.App.ViewModels
 
 			if (hWatchDir.ToInt64() == -1)
 				return;
+			var cancellationToken = watcherCTS.Token;
 
-			gitProcessQueueAction ??= Task.Factory.StartNew(() => ProcessGitChangesQueueAsync(watcherCTS.Token), default,
-				TaskCreationOptions.LongRunning, TaskScheduler.Default);
+			gitProcessQueueAction ??= ProcessGitChangesQueueAsync(cancellationToken);
 
 			var gitWatcherAction = Windows.System.Threading.ThreadPool.RunAsync((x) =>
 			{
@@ -2693,10 +2730,9 @@ namespace Files.App.ViewModels
 					}
 				}
 
-				gitChangesQueue.Clear();
 			});
 
-			watcherCTS.Token.Register(() =>
+			RegisterWatcherCancellation(cancellationToken, () =>
 			{
 				if (gitWatcherAction is not null)
 				{
@@ -2713,29 +2749,29 @@ namespace Files.App.ViewModels
 
 		private async Task ProcessGitChangesQueueAsync(CancellationToken cancellationToken)
 		{
-			const int DELAY = 200;
-			var sampler = new IntervalSampler(100);
-			int changes = 0;
-
 			try
 			{
 				while (!cancellationToken.IsCancellationRequested)
 				{
-					if (await gitChangedEvent.WaitAsync(DELAY, cancellationToken))
-					{
-						gitChangedEvent.Reset();
-						while (gitChangesQueue.TryDequeue(out var _))
-							++changes;
+					await gitChangedEvent.WaitAsync(cancellationToken);
+					await Task.Delay(100, cancellationToken);
+					gitChangedEvent.Reset();
 
-						if (changes != 0 && sampler.CheckNow())
-						{
-							await dispatcherQueue.EnqueueOrInvokeAsync(() => GitDirectoryUpdated?.Invoke(null, null!));
-							changes = 0;
-						}
-					}
+					var changes = 0;
+					while (gitChangesQueue.TryDequeue(out _))
+						++changes;
+
+					if (changes != 0)
+						await dispatcherQueue.EnqueueOrInvokeAsync(() => GitDirectoryUpdated?.Invoke(null, null!));
 				}
 			}
-			catch { }
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				App.Logger.LogWarning(ex, "Git change processing stopped unexpectedly.");
+			}
 		}
 
 		private async Task ProcessOperationQueueAsync(CancellationToken cancellationToken, bool hasSyncStatus)
@@ -2747,7 +2783,6 @@ namespace Files.App.ViewModels
 			const uint FILE_ACTION_RENAMED_NEW_NAME = 0x00000005;
 
 			const int UPDATE_BATCH_SIZE = 32;
-			var sampler = new IntervalSampler(200);
 			var updateQueue = new Queue<string>();
 
 			var anyEdits = false;
@@ -2773,96 +2808,91 @@ namespace Files.App.ViewModels
 			{
 				while (!cancellationToken.IsCancellationRequested)
 				{
-					if (await operationEvent.WaitAsync(200, cancellationToken))
-					{
-						operationEvent.Reset();
+					await operationEvent.WaitAsync(cancellationToken);
+					await Task.Delay(50, cancellationToken);
+					operationEvent.Reset();
 
-						while (operationQueue.TryDequeue(out var operation))
+					while (operationQueue.TryDequeue(out var operation))
+					{
+						if (cancellationToken.IsCancellationRequested)
+							break;
+
+						try
 						{
-							if (cancellationToken.IsCancellationRequested)
-								break;
-
-							try
+							switch (operation.Action)
 							{
-								switch (operation.Action)
-								{
-									case FILE_ACTION_ADDED:
-									case FILE_ACTION_RENAMED_NEW_NAME:
-										lastItemAdded = await AddFileOrFolderAsync(operation.FileName);
-										if (lastItemAdded is not null)
-											anyEdits = true;
-										break;
+								case FILE_ACTION_ADDED:
+								case FILE_ACTION_RENAMED_NEW_NAME:
+									lastItemAdded = await AddFileOrFolderAsync(operation.FileName);
+									if (lastItemAdded is not null)
+										anyEdits = true;
+									break;
 
-									case FILE_ACTION_MODIFIED:
-										if (!updateQueue.Contains(operation.FileName))
-											updateQueue.Enqueue(operation.FileName);
-										break;
+								case FILE_ACTION_MODIFIED:
+									if (!updateQueue.Contains(operation.FileName))
+										updateQueue.Enqueue(operation.FileName);
+									break;
 
-									case FILE_ACTION_REMOVED:
-										var itemRemoved = await RemoveFileOrFolderAsync(operation.FileName);
-										if (itemRemoved is not null)
-											anyEdits = true;
-										break;
+								case FILE_ACTION_REMOVED:
+									var itemRemoved = await RemoveFileOrFolderAsync(operation.FileName);
+									if (itemRemoved is not null)
+										anyEdits = true;
+									break;
 
-									case FILE_ACTION_RENAMED_OLD_NAME:
-										// Pair OLD_NAME with the following NEW_NAME so the item can be updated
-										// in place and stay at its current position instead of jumping to a new
-										// sorted slot after a rename (issue #4214). Leaving anyEdits false skips
-										// OrderFilesAndFoldersAsync; PropertyChanged keeps the visible name in sync.
-										if (operationQueue.TryPeek(out var nextOp) && nextOp.Action == FILE_ACTION_RENAMED_NEW_NAME &&
-											filesAndFolders.ToList().FirstOrDefault(x => x.ItemPath.Equals(operation.FileName, StringComparison.OrdinalIgnoreCase)) is { } renamed)
+								case FILE_ACTION_RENAMED_OLD_NAME:
+									// Pair OLD_NAME with the following NEW_NAME so the item can be updated
+									// in place and stay at its current position instead of jumping to a new
+									// sorted slot after a rename (issue #4214). Leaving anyEdits false skips
+									// OrderFilesAndFoldersAsync; PropertyChanged keeps the visible name in sync.
+									if (operationQueue.TryPeek(out var nextOp) && nextOp.Action == FILE_ACTION_RENAMED_NEW_NAME &&
+										filesAndFolders.ToList().FirstOrDefault(x => x.ItemPath.Equals(operation.FileName, StringComparison.OrdinalIgnoreCase)) is { } renamed)
+									{
+										operationQueue.TryDequeue(out _);
+										var newPath = nextOp.FileName;
+										await dispatcherQueue.EnqueueOrInvokeAsync(() =>
 										{
-											operationQueue.TryDequeue(out _);
-											var newPath = nextOp.FileName;
-											await dispatcherQueue.EnqueueOrInvokeAsync(() =>
-											{
-												renamed.ItemPath = newPath;
-												renamed.ItemNameRaw = Path.GetFileName(newPath);
-												if (renamed.PrimaryItemAttribute == StorageItemTypes.File)
-													renamed.FileExtension = Path.GetExtension(newPath);
-											});
-										}
-										else
-										{
-											var itemRenamedOld = await RemoveFileOrFolderAsync(operation.FileName);
-											if (itemRenamedOld is not null)
-												anyEdits = true;
-										}
-										break;
-								}
+											renamed.ItemPath = newPath;
+											renamed.ItemNameRaw = Path.GetFileName(newPath);
+											if (renamed.PrimaryItemAttribute == StorageItemTypes.File)
+												renamed.FileExtension = Path.GetExtension(newPath);
+										});
+									}
+									else
+									{
+										var itemRenamedOld = await RemoveFileOrFolderAsync(operation.FileName);
+										if (itemRenamedOld is not null)
+											anyEdits = true;
+									}
+									break;
 							}
-							catch (Exception ex)
-							{
-								App.Logger.LogWarning(ex, ex.Message);
-							}
-
-							if (anyEdits && sampler.CheckNow())
-								await HandleChangesOccurredAsync();
 						}
-
-						var itemsToUpdate = new List<string>();
-						for (var i = 0; i < UPDATE_BATCH_SIZE && updateQueue.Count > 0; i++)
-							itemsToUpdate.Add(updateQueue.Dequeue());
-
-						await UpdateFilesOrFoldersAsync(itemsToUpdate, hasSyncStatus);
+						catch (Exception ex)
+						{
+							App.Logger.LogWarning(ex, ex.Message);
+						}
 					}
 
-					if (updateQueue.Count > 0)
+					while (updateQueue.Count > 0)
 					{
 						var itemsToUpdate = new List<string>();
 						for (var i = 0; i < UPDATE_BATCH_SIZE && updateQueue.Count > 0; i++)
 							itemsToUpdate.Add(updateQueue.Dequeue());
 
 						await UpdateFilesOrFoldersAsync(itemsToUpdate, hasSyncStatus);
+						if (updateQueue.Count > 0)
+							await Task.Yield();
 					}
 
-					if (anyEdits && sampler.CheckNow())
+					if (anyEdits)
 						await HandleChangesOccurredAsync();
 				}
 			}
-			catch
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 			{
-				// Prevent disposed cancellation token
+			}
+			catch (Exception ex)
+			{
+				App.Logger.LogWarning(ex, "File change processing stopped unexpectedly.");
 			}
 
 			Debug.WriteLine("aProcessQueueAction done: {0}", rand);

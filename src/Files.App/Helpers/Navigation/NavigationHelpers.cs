@@ -418,6 +418,8 @@ namespace Files.App.Helpers
 				return;
 
 			await UpdateTabInfoAsync(matchingTabItem, e.NavigationParameter);
+			if (ReferenceEquals(matchingTabItem, MainPageViewModel.SelectedTabItem) && !string.IsNullOrWhiteSpace(matchingTabItem.Header))
+				MainWindow.Instance.AppWindow.Title = $"{matchingTabItem.Header} - Files";
 		}
 
 		public static Task<bool> OpenPathInNewWindowAsync(string? path)

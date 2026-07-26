@@ -75,6 +75,9 @@
     <Project Path="tests/Files.App.SaveDialog.UnitTests/Files.App.SaveDialog.UnitTests.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="tests/Files.Shared.UnitTests/Files.Shared.UnitTests.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="tests/Files.App.UITests/Files.App.UITests.csproj">
       <Platform Solution="*|arm64" Project="arm64" />
       <Platform Solution="*|x64" Project="x64" />

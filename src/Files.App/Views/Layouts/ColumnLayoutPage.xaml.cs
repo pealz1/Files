@@ -37,6 +37,7 @@ namespace Files.App.Views.Layouts
 		// True if the most recent PointerPressed had the right button down, so SelectionChanged
 		// (which has no pointer info) can skip auto-opening folders on right-click.
 		private bool isRightButtonPressed;
+		private bool isFileListInitialized;
 
 		public event EventHandler? ItemInvoked;
 		public event EventHandler? ItemTapped;
@@ -115,6 +116,10 @@ namespace Files.App.Views.Layouts
 		private void FileList_Loaded(object sender, RoutedEventArgs e)
 		{
 			ContentScroller = FileList.FindDescendant<ScrollViewer>(x => x.Name == "ScrollViewer");
+			if (isFileListInitialized)
+				return;
+
+			isFileListInitialized = true;
 			ParentShellPageInstance.ShellViewModel.ItemLoadStatusChanged += OnItemLoadStatusChanged;
 		}
 

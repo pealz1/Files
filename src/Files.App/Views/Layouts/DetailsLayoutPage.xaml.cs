@@ -40,6 +40,7 @@ namespace Files.App.Views.Layouts
 		private uint currentIconSize;
 
 		private DispatcherQueueTimer? _autoFitColumnsTimer;
+		private bool isFileListInitialized;
 
 		// Properties
 
@@ -995,6 +996,10 @@ namespace Files.App.Views.Layouts
 		private void FileList_Loaded(object sender, RoutedEventArgs e)
 		{
 			ContentScroller = FileList.FindDescendant<ScrollViewer>(x => x.Name == "ScrollViewer");
+			if (isFileListInitialized)
+				return;
+
+			isFileListInitialized = true;
 			const double OffsetCorrection = 88; // HeaderGrid (40) + ListViewHeaderItem (44 + 4 margin)
 
 			RootGridZoom.ViewChangeStarted += (_, args) =>

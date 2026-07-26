@@ -37,6 +37,7 @@ namespace Files.App.Views
 
 		private readonly Dictionary<TabBarItem, double> _sidebarScrollByTab = new();
 		private TabBarItem? _previousSidebarTab;
+		private int _tabChangeVersion;
 
 		public MainPage()
 		{
@@ -122,7 +123,7 @@ namespace Files.App.Views
 			return height;
 		}
 
-		public async void TabItemContent_ContentChanged(object? sender, TabBarItemParameter e)
+		public void TabItemContent_ContentChanged(object? sender, TabBarItemParameter e)
 		{
 			if (SidebarAdaptiveViewModel.PaneHolder is null)
 				return;
@@ -134,14 +135,13 @@ namespace Files.App.Views
 			UpdateStatusBarProperties();
 			LoadPaneChanged();
 			UpdateNavToolbarProperties();
-			await NavigationHelpers.UpdateInstancePropertiesAsync(paneArgs);
 
 			// Save the updated tab list
 			AppLifecycleHelper.SaveSessionTabs();
 		}
 
 
-		public async void MultitaskingControl_CurrentInstanceChanged(object? sender, CurrentInstanceChangedEventArgs e)
+		public void MultitaskingControl_CurrentInstanceChanged(object? sender, CurrentInstanceChangedEventArgs e)
 		{
 			// Add null check for the event args and CurrentInstance
 			if (e?.CurrentInstance == null)
@@ -169,16 +169,25 @@ namespace Files.App.Views
 			UpdateStatusBarProperties();
 			UpdateNavToolbarProperties();
 			LoadPaneChanged();
+			var selectedTab = ViewModel.SelectedTabItem;
+			if (!string.IsNullOrWhiteSpace(selectedTab?.Header))
+				MainWindow.Instance.AppWindow.Title = $"{selectedTab.Header} - Files";
 
 			e.CurrentInstance.ContentChanged -= TabItemContent_ContentChanged;
 			e.CurrentInstance.ContentChanged += TabItemContent_ContentChanged;
 
-			await NavigationHelpers.UpdateInstancePropertiesAsync(navArgs);
-
-			// Focus the content of the selected tab item (this also avoids an issue where the Omnibar sometimes steals the focus)
-			await Task.Delay(100);
-			if (!App.AppModel.IsMainWindowClosed && ContentPageContext?.ShellPage?.PaneHolder != null)
-				ContentPageContext.ShellPage.PaneHolder.FocusActivePane();
+			// Coalesce focus restoration when users switch rapidly. A fixed delay queued one continuation
+			// per selection and could keep the UI thread busy long after switching stopped.
+			var changeVersion = Interlocked.Increment(ref _tabChangeVersion);
+			DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+			{
+				if (changeVersion == _tabChangeVersion &&
+					!App.AppModel.IsMainWindowClosed &&
+					ContentPageContext?.ShellPage?.PaneHolder != null)
+				{
+					ContentPageContext.ShellPage.PaneHolder.FocusActivePane();
+				}
+			});
 		}
 
 		private void PaneHolder_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -618,8 +627,13 @@ namespace Files.App.Views
 				return;
 
 			var savedOffset = _sidebarScrollByTab.GetValueOrDefault(newTab);
+			var expectedTab = newTab;
 			// Defer to after the flat-tree's tab-state restoration dispatcher work so the content extent has caught up before scrolling.
-			DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => SidebarControl.ScrollToVerticalOffset(savedOffset));
+			DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+			{
+				if (ReferenceEquals(ViewModel.SelectedTabItem, expectedTab))
+					SidebarControl.ScrollToVerticalOffset(savedOffset);
+			});
 		}
 
 		private void RootGrid_PreviewKeyDown(object sender, KeyRoutedEventArgs e)

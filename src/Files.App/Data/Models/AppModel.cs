@@ -38,7 +38,8 @@ namespace Files.App.Data.Models
 			{
 				try
 				{
-					SetProperty(ref _TabStripSelectedIndex, value);
+					if (!SetProperty(ref _TabStripSelectedIndex, value))
+						return;
 
 					if (value >= 0 && value < MainPageViewModel.AppInstances.Count)
 					{

@@ -13,6 +13,7 @@ namespace Files.App.UserControls.TabBar
 	public abstract class BaseTabBar : UserControl, ITabBar, INotifyPropertyChanged
 	{
 		protected ITabBarItemContent CurrentSelectedAppInstance;
+		private bool isLoadedInitialized;
 
 		public static event EventHandler<ITabBar>? OnLoaded;
 		public static event PropertyChangedEventHandler? StaticPropertyChanged;
@@ -66,7 +67,11 @@ namespace Files.App.UserControls.TabBar
 		{
 			if (App.AppModel.TabStripSelectedIndex >= 0 && App.AppModel.TabStripSelectedIndex < Items.Count)
 			{
-				CurrentSelectedAppInstance = GetCurrentSelectedTabInstance();
+				var selectedInstance = GetCurrentSelectedTabInstance();
+				if (ReferenceEquals(CurrentSelectedAppInstance, selectedInstance))
+					return;
+
+				CurrentSelectedAppInstance = selectedInstance;
 
 				if (CurrentSelectedAppInstance is not null)
 				{
@@ -96,6 +101,10 @@ namespace Files.App.UserControls.TabBar
 
 		public void TabView_Loaded(object sender, RoutedEventArgs e)
 		{
+			if (isLoadedInitialized)
+				return;
+
+			isLoadedInitialized = true;
 			CurrentInstanceChanged += TabView_CurrentInstanceChanged;
 			OnLoaded?.Invoke(null, this);
 		}

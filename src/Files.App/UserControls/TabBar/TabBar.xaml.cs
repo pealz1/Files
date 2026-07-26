@@ -85,10 +85,11 @@ namespace Files.App.UserControls.TabBar
 
 			if (App.AppModel.TabStripSelectedIndex >= 0 && App.AppModel.TabStripSelectedIndex < Items.Count)
 			{
-				CurrentSelectedAppInstance = GetCurrentSelectedTabInstance();
+				var selectedInstance = GetCurrentSelectedTabInstance();
 
-				if (CurrentSelectedAppInstance is not null)
+				if (!ReferenceEquals(CurrentSelectedAppInstance, selectedInstance))
 				{
+					CurrentSelectedAppInstance = selectedInstance;
 					OnCurrentInstanceChanged(new CurrentInstanceChangedEventArgs()
 					{
 						CurrentInstance = CurrentSelectedAppInstance,
