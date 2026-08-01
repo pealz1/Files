@@ -4,12 +4,10 @@
 #include "resource.h"       // simboli principali
 
 
-#define DEBUGLOG
-
-
 #include "CustomSaveDialog_i.h"
 #include "UndefInterfaces.h"
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 #include <utility>
@@ -69,7 +67,8 @@ END_COM_MAP()
 	std::wstring _outputPath;
 	std::wstring _initName;
 	IShellItem* _initFolder;
-	IFileDialogEvents* _dialogEvents;
+	std::map<DWORD, CComPtr<IFileDialogEvents>> _dialogEventSinks;
+	DWORD _nextDialogEventCookie = 1;
 
 	std::vector<std::pair<std::wstring, std::wstring>> _fileTypes; // (display, pattern)
 	UINT _fileTypeIndex = 1;

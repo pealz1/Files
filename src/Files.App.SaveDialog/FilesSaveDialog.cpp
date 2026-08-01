@@ -1,7 +1,6 @@
 // FilesSaveDialog.cpp: implementazione di CFilesSaveDialog
 
 #include "pch.h"
-#include "FilesDialogEvents.h"
 #include "FilesSaveDialog.h"
 #include <shlobj.h>
 #include <iostream>
@@ -100,7 +99,6 @@ CFilesSaveDialog::CFilesSaveDialog()
 	_fos = FOS_PATHMUSTEXIST;
 	_systemDialog = nullptr;
 	_debugStream = NULL;
-	_dialogEvents = NULL;
 
 	PWSTR pszPath = NULL;
 	HRESULT hr = SHGetKnownFolderPath(FOLDERID_Desktop, 0, NULL, &pszPath);
@@ -571,9 +569,14 @@ HRESULT __stdcall CFilesSaveDialog::Show(HWND hwndOwner)
 	}
 	if (!_selectedItem.empty())
 	{
-		if (_dialogEvents)
+		std::vector<CComPtr<IFileDialogEvents>> eventSinks;
+		for (const auto& entry : _dialogEventSinks)
+			eventSinks.push_back(entry.second);
+
+		for (const auto& eventSink : eventSinks)
 		{
-			_dialogEvents->OnFileOk(this);
+			if (eventSink)
+				eventSink->OnFileOk(this);
 		}
 	}
 
@@ -622,15 +625,17 @@ HRESULT __stdcall CFilesSaveDialog::GetFileTypeIndex(UINT* piFileType)
 HRESULT __stdcall CFilesSaveDialog::Advise(IFileDialogEvents* pfde, DWORD* pdwCookie)
 {
 	cout << "Advise" << endl;
-#ifdef DEBUGLOG
-	pfde = new FilesDialogEvents(pfde, this);
-#endif
 #ifdef SYSTEMDIALOG
 	return _systemDialog->Advise(pfde, pdwCookie);
 #endif
-	_dialogEvents = pfde;
-	_dialogEvents->AddRef();
-	*pdwCookie = 4;
+	if (!pfde || !pdwCookie)
+		return E_POINTER;
+
+	while (_nextDialogEventCookie == 0 || _dialogEventSinks.find(_nextDialogEventCookie) != _dialogEventSinks.end())
+		++_nextDialogEventCookie;
+
+	*pdwCookie = _nextDialogEventCookie++;
+	_dialogEventSinks[*pdwCookie] = pfde;
 	return S_OK;
 }
 
@@ -640,8 +645,9 @@ HRESULT __stdcall CFilesSaveDialog::Unadvise(DWORD dwCookie)
 #ifdef SYSTEMDIALOG
 	return _systemDialog->Unadvise(dwCookie);
 #endif
-	_dialogEvents->Release();
-	_dialogEvents = NULL;
+	if (_dialogEventSinks.erase(dwCookie) == 0)
+		return E_INVALIDARG;
+
 	return S_OK;
 }
 

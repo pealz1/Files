@@ -69,6 +69,17 @@ namespace Files.App.Views
 				ViewModel.CopyPathCommand.Execute(path);
 		}
 
+		private void DashboardNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+		{
+			if (args.SelectedItem is NavigationViewItem { Tag: string indexText } &&
+				int.TryParse(indexText, out var index) &&
+				index >= 0 && index < DashboardPivot.Items.Count)
+			{
+				sender.Header = ((NavigationViewItem)args.SelectedItem).Content;
+				DashboardPivot.SelectedIndex = index;
+			}
+		}
+
 		protected override void OnNavigatedFrom(NavigationEventArgs e)
 		{
 			Dispose();

@@ -48,8 +48,10 @@ namespace Files.App
 			ApplicationData.Current.LocalSettings.Values[LaunchCwdKey] = Environment.CurrentDirectory;
 
 			var pool = new Semaphore(0, 1, $"Files-{AppLifecycleHelper.AppEnvironment}-Instance", out var isNew);
+			var activatedArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
+			var isDialogActivation = CommandLineParser.IsFileDialogActivation(GetCommandLineArgs(activatedArgs));
 
-			if (!isNew)
+			if (!isNew && !isDialogActivation)
 			{
 				// Resume cached instance
 				pool.Release();
@@ -57,7 +59,7 @@ namespace Files.App
 				// Redirect to the main process
 				var activePid = ApplicationData.Current.LocalSettings.Values.Get("INSTANCE_ACTIVE", -1);
 				var instance = AppInstance.FindOrRegisterForKey(activePid.ToString());
-				RedirectActivationTo(instance, AppInstance.GetCurrent().GetActivatedEventArgs());
+				RedirectActivationTo(instance, activatedArgs);
 
 				// Kill the current process
 				Environment.Exit(0);
@@ -147,7 +149,7 @@ namespace Files.App
 			if (commandLineArgs is not null)
 			{
 				var parsedCommands = CommandLineParser.ParseUntrustedCommands(commandLineArgs);
-				isDialogActivation = parsedCommands?.Any(x => x.Type == ParsedCommandType.OutputPath) ?? false;
+				isDialogActivation = CommandLineParser.IsFileDialogActivation(commandLineArgs);
 
 				if (parsedCommands is not null)
 				{

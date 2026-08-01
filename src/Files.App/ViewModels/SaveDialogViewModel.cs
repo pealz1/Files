@@ -28,13 +28,29 @@ namespace Files.App.ViewModels
 		[ObservableProperty]
 		private FileTypeChoice? selectedFileType;
 
+		[ObservableProperty]
+		private string? validationMessage;
+
+		[ObservableProperty]
+		private bool isSaving;
+
 		public event EventHandler? CommitRequested;
 		public event EventHandler? CancelRequested;
 		public event EventHandler? NewFolderRequested;
 
-		public bool CanSave => SaveDialogPathHelper.IsValidFileName(FileName);
+		public bool CanSave => !IsSaving && SaveDialogPathHelper.IsValidFileName(FileName);
 
-		partial void OnFileNameChanged(string value) => SaveCommand.NotifyCanExecuteChanged();
+		public bool HasValidationMessage => !string.IsNullOrWhiteSpace(ValidationMessage);
+
+		partial void OnFileNameChanged(string value)
+		{
+			ValidationMessage = null;
+			SaveCommand.NotifyCanExecuteChanged();
+		}
+
+		partial void OnIsSavingChanged(bool value) => SaveCommand.NotifyCanExecuteChanged();
+
+		partial void OnValidationMessageChanged(string? value) => OnPropertyChanged(nameof(HasValidationMessage));
 
 		[RelayCommand(CanExecute = nameof(CanSave))]
 		private void Save() => CommitRequested?.Invoke(this, EventArgs.Empty);
@@ -52,6 +68,8 @@ namespace Files.App.ViewModels
 			var idx = Math.Clamp(request.TypeIndex - 1, 0, Math.Max(0, request.FileTypes.Count - 1));
 			SelectedFileType = request.FileTypes.Count > 0 ? request.FileTypes[idx] : null;
 			FileName = request.SuggestedName;
+			ValidationMessage = null;
+			IsSaving = false;
 			IsActive = true;
 		}
 	}

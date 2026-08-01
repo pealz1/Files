@@ -11,6 +11,20 @@ namespace Files.App.Utils.CommandLine
 	public sealed class CommandLineParser
 	{
 		/// <summary>
+		/// Returns whether the command line represents an isolated file-dialog activation.
+		/// Dialog windows must never be redirected into a cached browsing instance.
+		/// </summary>
+		public static bool IsFileDialogActivation(string? commandLine)
+		{
+			if (string.IsNullOrWhiteSpace(commandLine))
+				return false;
+
+			var commands = ParseUntrustedCommands(commandLine);
+			return commands.Any(x => x.Type == ParsedCommandType.OutputPath) &&
+				commands.Any(x => x.Type is ParsedCommandType.SaveDialog or ParsedCommandType.OpenDialog);
+		}
+
+		/// <summary>
 		/// Parses raw command line string.
 		/// </summary>
 		/// <param name="cmdLineString">String of command line to parse.</param>

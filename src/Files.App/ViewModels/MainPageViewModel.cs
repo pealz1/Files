@@ -1,6 +1,7 @@
 // Copyright (c) Files Community
 // Licensed under the MIT License.
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -333,24 +334,36 @@ namespace Files.App.ViewModels
 
 		private async Task RestoreSessionTabsAsync(List<string> sessionTabs)
 		{
-			if (sessionTabs is null || sessionTabs.Count == 0)
+			var restorableTabs = sessionTabs?
+				.Where(tab => !string.IsNullOrWhiteSpace(tab))
+				.Select(TryDeserializeSessionTab)
+				.Where(tab => tab is not null)
+				.Cast<TabBarItemParameter>()
+				.ToList() ?? [];
+
+			if (restorableTabs.Count == 0)
+			{
+				UserSettingsService.GeneralSettingsService.LastSessionTabList = null;
+				UserSettingsService.GeneralSettingsService.LastSessionSelectedTabIndex = -1;
+				await NavigationHelpers.AddNewTabAsync();
 				return;
+			}
 
 			var savedIndex = UserSettingsService.GeneralSettingsService.LastSessionSelectedTabIndex;
-			if (savedIndex < 0 || savedIndex >= sessionTabs.Count)
-				savedIndex = sessionTabs.Count - 1;
+			if (savedIndex < 0 || savedIndex >= restorableTabs.Count)
+				savedIndex = restorableTabs.Count - 1;
 
 			// Load the previously focused tab first so the user can interact with it while the rest load.
-			var focusedArgs = TabBarItemParameter.Deserialize(sessionTabs[savedIndex]);
+			var focusedArgs = restorableTabs[savedIndex];
 			await NavigationHelpers.AddNewTabByParamAsync(focusedArgs.InitialPageType, focusedArgs.NavigationParameter);
 
 			// Append the remaining tabs in their original order without changing the selection.
-			for (int i = 0; i < sessionTabs.Count; i++)
+			for (int i = 0; i < restorableTabs.Count; i++)
 			{
 				if (i == savedIndex)
 					continue;
 
-				var args = TabBarItemParameter.Deserialize(sessionTabs[i]);
+				var args = restorableTabs[i];
 				await NavigationHelpers.AddNewTabByParamAsync(args.InitialPageType, args.NavigationParameter, switchToNewTab: false);
 			}
 
@@ -359,6 +372,33 @@ namespace Files.App.ViewModels
 			{
 				AppInstances.Move(0, savedIndex);
 				App.AppModel.TabStripSelectedIndex = savedIndex;
+			}
+		}
+
+		private static TabBarItemParameter? TryDeserializeSessionTab(string serializedTab)
+		{
+			try
+			{
+				var tab = TabBarItemParameter.Deserialize(serializedTab);
+				if (tab.InitialPageType is null || tab.NavigationParameter is null)
+					return null;
+
+				if (tab.NavigationParameter is string path && string.IsNullOrWhiteSpace(path))
+					return null;
+
+				if (tab.NavigationParameter is PaneNavigationArguments pane &&
+					string.IsNullOrWhiteSpace(pane.LeftPaneNavPathParam) &&
+					string.IsNullOrWhiteSpace(pane.RightPaneNavPathParam))
+				{
+					return null;
+				}
+
+				return tab;
+			}
+			catch (Exception ex)
+			{
+				App.Logger?.LogWarning(ex, "Ignoring an invalid saved session tab.");
+				return null;
 			}
 		}
 

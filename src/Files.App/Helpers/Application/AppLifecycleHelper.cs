@@ -323,20 +323,16 @@ namespace Files.App.Helpers
 		{
 			var userSettingsService = Ioc.Default.GetRequiredService<IUserSettingsService>();
 
-			userSettingsService.GeneralSettingsService.LastSessionTabList = MainPageViewModel.AppInstances.DefaultIfEmpty().Select(tab =>
-			{
-				if (tab is not null && tab.NavigationParameter is not null)
-				{
-					return tab.NavigationParameter.Serialize();
-				}
-				else
-				{
-					return "";
-				}
-			})
-			.ToList();
+			var tabs = MainPageViewModel.AppInstances
+				.Where(tab => tab.NavigationParameter is not null)
+				.Select(tab => tab.NavigationParameter.Serialize())
+				.Where(tab => !string.IsNullOrWhiteSpace(tab))
+				.ToList();
 
-			userSettingsService.GeneralSettingsService.LastSessionSelectedTabIndex = App.AppModel.TabStripSelectedIndex;
+			userSettingsService.GeneralSettingsService.LastSessionTabList = tabs.Count > 0 ? tabs : null;
+			userSettingsService.GeneralSettingsService.LastSessionSelectedTabIndex = tabs.Count > 0
+				? Math.Clamp(App.AppModel.TabStripSelectedIndex, 0, tabs.Count - 1)
+				: -1;
 		}
 
 		/// <summary>

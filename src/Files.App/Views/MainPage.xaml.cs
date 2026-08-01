@@ -382,36 +382,60 @@ namespace Files.App.Views
 		private async void SaveDialog_CommitRequested(object? sender, EventArgs e)
 		{
 			var vm = ViewModel.SaveDialogViewModel;
-			var folder = GetActiveWorkingDirectory();
-			var type = vm.SelectedFileType ?? new Utils.SaveDialog.FileTypeChoice("All files", "*.*", "");
+			if (vm.IsSaving)
+				return;
 
+			vm.ValidationMessage = null;
 			if (!Utils.SaveDialog.SaveDialogPathHelper.IsValidFileName(vm.FileName))
-				return;
-
-			// Reject virtual/non-filesystem locations unless the user typed an absolute path.
-			if (string.IsNullOrEmpty(folder) && !System.IO.Path.IsPathRooted(vm.FileName.Trim()))
-				return;
-
-			var fullPath = Utils.SaveDialog.SaveDialogPathHelper.ResolveTargetPath(folder, vm.FileName, type);
-
-			if (System.IO.File.Exists(fullPath))
 			{
-				var confirm = new ContentDialog
-				{
-					Title = "Replace existing file?",
-					Content = $"{System.IO.Path.GetFileName(fullPath)} already exists. Do you want to replace it?",
-					PrimaryButtonText = "Replace",
-					CloseButtonText = "Cancel",
-					DefaultButton = ContentDialogButton.Close,
-					XamlRoot = XamlRoot,
-				};
-
-				if (await confirm.ShowAsync() != ContentDialogResult.Primary)
-					return;
+				vm.ValidationMessage = "Enter a valid file name.";
+				return;
 			}
 
-			var index = vm.SelectedFileType is null ? 1 : vm.FileTypes.ToList().IndexOf(vm.SelectedFileType) + 1;
-			CommitSaveResult(fullPath, index);
+			vm.IsSaving = true;
+			try
+			{
+				var folder = GetActiveWorkingDirectory();
+				var type = vm.SelectedFileType ?? new Utils.SaveDialog.FileTypeChoice("All files", "*.*", "");
+
+				// Reject virtual/non-filesystem locations unless the user typed an absolute path.
+				if (string.IsNullOrEmpty(folder) && !System.IO.Path.IsPathRooted(vm.FileName.Trim()))
+				{
+					vm.ValidationMessage = "Choose a folder before saving.";
+					return;
+				}
+
+				var fullPath = Utils.SaveDialog.SaveDialogPathHelper.ResolveTargetPath(folder, vm.FileName, type);
+
+				if (System.IO.File.Exists(fullPath))
+				{
+					var confirm = new ContentDialog
+					{
+						Title = "Replace existing file?",
+						Content = $"{System.IO.Path.GetFileName(fullPath)} already exists. Do you want to replace it?",
+						PrimaryButtonText = "Replace",
+						CloseButtonText = "Cancel",
+						DefaultButton = ContentDialogButton.Close,
+						XamlRoot = XamlRoot,
+					};
+
+					if (await confirm.ShowAsync() != ContentDialogResult.Primary)
+						return;
+				}
+
+				var index = vm.SelectedFileType is null ? 1 : vm.FileTypes.ToList().IndexOf(vm.SelectedFileType) + 1;
+				CommitSaveResult(fullPath, index);
+			}
+			catch (Exception ex)
+			{
+				App.Logger.LogError(ex, "Failed to commit the Files Pro save dialog result.");
+				vm.ValidationMessage = "Files Pro couldn't finish this save. Choose another folder or file name and try again.";
+			}
+			finally
+			{
+				if (!App.DialogCommitted)
+					vm.IsSaving = false;
+			}
 		}
 
 		private void SaveDialog_CancelRequested(object? sender, EventArgs e)
@@ -431,11 +455,11 @@ namespace Files.App.Views
 
 		private void CommitSaveResult(string fullPath, int typeIndex)
 		{
-			if (App.OutputPath is not null)
-			{
-				System.IO.File.WriteAllLines(App.OutputPath, [fullPath, $"index={typeIndex}"]);
-				App.DialogCommitted = true;
-			}
+			if (string.IsNullOrWhiteSpace(App.OutputPath))
+				throw new InvalidOperationException("The save dialog result path is unavailable.");
+
+			System.IO.File.WriteAllLines(App.OutputPath, [fullPath, $"index={typeIndex}"]);
+			App.DialogCommitted = true;
 
 			App.SignalDialogDone();
 			App.OutputPath = null; // ensure Window_Closed does not re-handle

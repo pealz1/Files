@@ -18,152 +18,159 @@
 		</Grid.RowDefinitions>
 
 		<Border
-			Padding="16,10"
+			Padding="20,16,20,12"
 			Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
 			BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
 			BorderThickness="0,0,0,1">
-			<Grid RowSpacing="10">
+			<Grid RowSpacing="14">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto" />
 					<RowDefinition Height="Auto" />
 				</Grid.RowDefinitions>
 
-				<StackPanel Orientation="Horizontal" Spacing="8">
-					<FontIcon FontSize="16" Glyph="&#xE8B7;" />
-					<TextBlock
-						VerticalAlignment="Center"
-						FontSize="16"
-						FontWeight="SemiBold"
-						Text="Files Pro" />
-				</StackPanel>
-
-				<Grid Grid.Row="1" ColumnSpacing="12">
+				<Grid ColumnSpacing="24">
 					<Grid.ColumnDefinitions>
 						<ColumnDefinition Width="*" />
-						<ColumnDefinition Width="360" />
-						<ColumnDefinition Width="328" />
+						<ColumnDefinition Width="Auto" />
 					</Grid.ColumnDefinitions>
 
-					<TextBox
-						Height="56"
-						AcceptsReturn="True"
-						Header="Scan and index roots"
-						Text="{Binding ScanRootsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-						TextWrapping="NoWrap" />
+					<StackPanel Spacing="3">
+						<StackPanel Orientation="Horizontal" Spacing="10">
+							<FontIcon FontSize="22" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Glyph="&#xE8B7;" />
+							<TextBlock FontSize="24" FontWeight="SemiBold" Text="Files Pro" />
+						</StackPanel>
+						<TextBlock
+							MaxWidth="620"
+							Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+							Text="Find projects, clean downloads, and understand what is using your storage."
+							TextWrapping="Wrap" />
+					</StackPanel>
 
-					<Grid Grid.Column="1" ColumnSpacing="8">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="*" />
-							<ColumnDefinition Width="*" />
-							<ColumnDefinition Width="86" />
-						</Grid.ColumnDefinitions>
-						<TextBox
-							Header="Downloads"
-							Text="{Binding DownloadsPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-						<TextBox
-							Grid.Column="1"
-							Header="Storage scan root"
-							Text="{Binding LargeFilesRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-						<NumberBox
-							Grid.Column="2"
-							Header="Min MB"
-							Minimum="1"
-							SmallChange="128"
-							Value="{Binding MinimumLargeFileSizeMb, Mode=TwoWay}" />
-					</Grid>
-
-					<Grid
-					Grid.Column="2"
-						VerticalAlignment="Bottom"
-						ColumnSpacing="8"
-						RowSpacing="6">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="*" />
-							<ColumnDefinition Width="*" />
-							<ColumnDefinition Width="*" />
-						</Grid.ColumnDefinitions>
-						<Grid.RowDefinitions>
-							<RowDefinition Height="Auto" />
-							<RowDefinition Height="Auto" />
-						</Grid.RowDefinitions>
-					<Button
-							MinHeight="30"
-						AutomationProperties.Name="Scan"
-						Command="{Binding StartScanCommand}">
-							<StackPanel Orientation="Horizontal" Spacing="6">
-								<FontIcon FontSize="14" Glyph="&#xE768;" />
-								<TextBlock FontSize="12" Text="Scan" />
-						</StackPanel>
-					</Button>
-					<Button
-							Grid.Column="1"
-							MinHeight="30"
-						AutomationProperties.Name="Index"
-						Command="{Binding RebuildIndexCommand}">
-							<StackPanel Orientation="Horizontal" Spacing="6">
-								<FontIcon FontSize="14" Glyph="&#xE895;" />
-								<TextBlock FontSize="12" Text="Index" />
-						</StackPanel>
-					</Button>
-					<Button
-							Grid.Column="2"
-							MinHeight="30"
-						AutomationProperties.Name="Cancel"
-						Command="{Binding CancelScanCommand}">
-							<StackPanel Orientation="Horizontal" Spacing="6">
-								<FontIcon FontSize="14" Glyph="&#xE711;" />
-								<TextBlock FontSize="12" Text="Cancel" />
-						</StackPanel>
-					</Button>
-					<Button
-							Grid.Row="1"
-							MinHeight="30"
-						AutomationProperties.Name="Export CSV"
-						Command="{Binding ExportStorageReportCommand}"
-						CommandParameter="Csv">
-							<StackPanel Orientation="Horizontal" Spacing="6">
-								<FontIcon FontSize="14" Glyph="&#xE74E;" />
-								<TextBlock FontSize="12" Text="CSV" />
-						</StackPanel>
-					</Button>
-					<Button
-							Grid.Row="1"
-							Grid.Column="1"
-							MinHeight="30"
-						AutomationProperties.Name="Export JSON"
-						Command="{Binding ExportStorageReportCommand}"
-						CommandParameter="Json">
-							<StackPanel Orientation="Horizontal" Spacing="6">
-								<FontIcon FontSize="14" Glyph="&#xE74E;" />
-								<TextBlock FontSize="12" Text="JSON" />
-						</StackPanel>
-					</Button>
-					<Button
-							Grid.Row="1"
-							Grid.Column="2"
-							MinHeight="30"
-						AutomationProperties.Name="Check fast paths"
-						Command="{Binding RefreshFastPathStatusCommand}">
-							<StackPanel Orientation="Horizontal" Spacing="6">
-								<FontIcon FontSize="14" Glyph="&#xE9D9;" />
-								<TextBlock FontSize="12" Text="Paths" />
-						</StackPanel>
-					</Button>
-					</Grid>
+					<StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="8">
+						<Button
+							AutomationProperties.Name="Scan files and storage"
+							Command="{Binding StartScanCommand}"
+							Style="{ThemeResource AccentButtonStyle}">
+							<StackPanel Orientation="Horizontal" Spacing="7">
+								<FontIcon Glyph="&#xE768;" />
+								<TextBlock Text="Scan now" />
+							</StackPanel>
+						</Button>
+						<Button AutomationProperties.Name="Build search index" Command="{Binding RebuildIndexCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="7">
+								<FontIcon Glyph="&#xE895;" />
+								<TextBlock Text="Build index" />
+							</StackPanel>
+						</Button>
+						<Button AutomationProperties.Name="Cancel current task" Command="{Binding CancelScanCommand}">
+							<StackPanel Orientation="Horizontal" Spacing="7">
+								<FontIcon Glyph="&#xE711;" />
+								<TextBlock Text="Cancel" />
+							</StackPanel>
+						</Button>
+						<Button AutomationProperties.Name="More Files Pro actions">
+							<Button.Flyout>
+								<MenuFlyout>
+									<MenuFlyoutItem Command="{Binding ExportStorageReportCommand}" CommandParameter="Csv" Text="Export storage report as CSV">
+										<MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74E;" /></MenuFlyoutItem.Icon>
+									</MenuFlyoutItem>
+									<MenuFlyoutItem Command="{Binding ExportStorageReportCommand}" CommandParameter="Json" Text="Export storage report as JSON">
+										<MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74E;" /></MenuFlyoutItem.Icon>
+									</MenuFlyoutItem>
+									<MenuFlyoutSeparator />
+									<MenuFlyoutItem Command="{Binding RefreshFastPathStatusCommand}" Text="Check performance support">
+										<MenuFlyoutItem.Icon><FontIcon Glyph="&#xE9D9;" /></MenuFlyoutItem.Icon>
+									</MenuFlyoutItem>
+								</MenuFlyout>
+							</Button.Flyout>
+							<FontIcon Glyph="&#xE712;" />
+						</Button>
+					</StackPanel>
 				</Grid>
+
+				<Expander Grid.Row="1" HorizontalAlignment="Stretch" Header="Locations and scan settings">
+					<Grid Padding="0,10,0,2" ColumnSpacing="18">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="1.4*" />
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="120" />
+						</Grid.ColumnDefinitions>
+
+						<StackPanel Spacing="5">
+							<TextBox
+								MinHeight="64"
+								AcceptsReturn="True"
+								Header="Folders to scan"
+								PlaceholderText="One folder per line"
+								Text="{Binding ScanRootsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+								TextWrapping="NoWrap" />
+							<TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Used for projects, Roblox files, and indexed search." TextWrapping="Wrap" />
+						</StackPanel>
+
+						<StackPanel Grid.Column="1" Spacing="5">
+							<TextBox Header="Downloads folder" Text="{Binding DownloadsPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+							<TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Only this folder is reviewed for cleanup suggestions." TextWrapping="Wrap" />
+						</StackPanel>
+
+						<StackPanel Grid.Column="2" Spacing="5">
+							<TextBox Header="Storage folder" Text="{Binding LargeFilesRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+							<TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Used for size, duplicate, and wasted-space reports." TextWrapping="Wrap" />
+						</StackPanel>
+
+						<StackPanel Grid.Column="3" Spacing="5">
+							<NumberBox
+								Header="Large file (MB)"
+								Minimum="1"
+								SmallChange="128"
+								Value="{Binding MinimumLargeFileSizeMb, Mode=TwoWay}" />
+							<TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Minimum size shown in Large files." TextWrapping="Wrap" />
+						</StackPanel>
+					</Grid>
+				</Expander>
 			</Grid>
 		</Border>
 
-		<Pivot
+		<NavigationView
 			Grid.Row="1"
-			Padding="16,4,16,0"
+			x:Name="DashboardNavigation"
+			AlwaysShowHeader="True"
+			CompactPaneLength="48"
+			Header="Projects"
+			IsBackButtonVisible="Collapsed"
+			IsPaneOpen="True"
+			IsSettingsVisible="False"
+			OpenPaneLength="196"
+			PaneDisplayMode="LeftCompact"
+			SelectionChanged="DashboardNavigation_SelectionChanged">
+			<NavigationView.MenuItems>
+				<NavigationViewItemHeader Content="Discover" />
+				<NavigationViewItem Content="Projects" IsSelected="True" Tag="0"><NavigationViewItem.Icon><FontIcon Glyph="&#xE8B7;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Roblox files" Tag="1"><NavigationViewItem.Icon><FontIcon Glyph="&#xE943;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Indexed search" Tag="2"><NavigationViewItem.Icon><FontIcon Glyph="&#xE721;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItemSeparator />
+				<NavigationViewItemHeader Content="Clean up" />
+				<NavigationViewItem Content="Downloads review" Tag="3"><NavigationViewItem.Icon><FontIcon Glyph="&#xE896;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Review and apply" Tag="4"><NavigationViewItem.Icon><FontIcon Glyph="&#xE74D;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItemSeparator />
+				<NavigationViewItemHeader Content="Storage" />
+				<NavigationViewItem Content="Usage map" Tag="5"><NavigationViewItem.Icon><FontIcon Glyph="&#xE81E;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Largest folders" Tag="6"><NavigationViewItem.Icon><FontIcon Glyph="&#xE8B7;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="File types" Tag="7"><NavigationViewItem.Icon><FontIcon Glyph="&#xE8A5;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Large files" Tag="8"><NavigationViewItem.Icon><FontIcon Glyph="&#xE7C3;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Duplicates" Tag="9"><NavigationViewItem.Icon><FontIcon Glyph="&#xE8C8;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItem Content="Wasted space" Tag="10"><NavigationViewItem.Icon><FontIcon Glyph="&#xE74D;" /></NavigationViewItem.Icon></NavigationViewItem>
+				<NavigationViewItemSeparator />
+				<NavigationViewItem Content="Commands" Tag="11"><NavigationViewItem.Icon><FontIcon Glyph="&#xE756;" /></NavigationViewItem.Icon></NavigationViewItem>
+			</NavigationView.MenuItems>
+
+		<Pivot
+			x:Name="DashboardPivot"
+			Padding="20,12,20,0"
 			IsHeaderItemsCarouselEnabled="False">
 			<Pivot.Resources>
 				<Style TargetType="PivotHeaderItem">
-					<Setter Property="FontSize" Value="14" />
-					<Setter Property="FontWeight" Value="SemiBold" />
-					<Setter Property="MinHeight" Value="34" />
-					<Setter Property="Padding" Value="10,0" />
+					<Setter Property="Visibility" Value="Collapsed" />
 				</Style>
 			</Pivot.Resources>
 			<PivotItem Header="Projects">
@@ -841,6 +848,7 @@
 				</Grid>
 			</PivotItem>
 		</Pivot>
+		</NavigationView>
 
 		<Border
 			Grid.Row="2"

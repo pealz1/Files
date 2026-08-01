@@ -161,35 +161,35 @@ namespace Files.App.ViewModels
 			set => SetProperty(ref hasScanned, value);
 		}
 
-		private string progressText = "Ready";
+		private string progressText = "Ready to scan";
 		public string ProgressText
 		{
 			get => progressText;
 			set => SetProperty(ref progressText, value);
 		}
 
-		private string summaryText = "No scan has run yet.";
+		private string summaryText = "Select Scan now to discover projects, Roblox files, cleanup opportunities, and storage usage.";
 		public string SummaryText
 		{
 			get => summaryText;
 			set => SetProperty(ref summaryText, value);
 		}
 
-		private string indexStatsText = "Index has not been loaded.";
+		private string indexStatsText = "Build the search index to find files by name, type, or content.";
 		public string IndexStatsText
 		{
 			get => indexStatsText;
 			set => SetProperty(ref indexStatsText, value);
 		}
 
-		private string integrationStatusText = "Fast paths have not been checked.";
+		private string integrationStatusText = "Performance support has not been checked.";
 		public string IntegrationStatusText
 		{
 			get => integrationStatusText;
 			set => SetProperty(ref integrationStatusText, value);
 		}
 
-		private string storageSummaryText = "Storage has not been analyzed.";
+		private string storageSummaryText = "Select Scan now to analyze storage usage.";
 		public string StorageSummaryText
 		{
 			get => storageSummaryText;
@@ -534,7 +534,7 @@ namespace Files.App.ViewModels
 			DuplicateGroups.Clear();
 			WastedSpaceSuggestions.Clear();
 			TreemapTiles.Clear();
-			StorageSummaryText = "Storage has not been analyzed.";
+			StorageSummaryText = "Select Scan now to analyze storage usage.";
 		}
 
 		private void LoadCommandPaletteDefaults()
@@ -739,12 +739,13 @@ namespace Files.App.ViewModels
 		private static IReadOnlyList<string> GetDefaultRoots()
 		{
 			var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+			var systemDrive = Path.GetPathRoot(userProfile) ?? @"C:\";
 			var candidates = new[]
 			{
+				Path.Combine(systemDrive, "dev"),
 				Constants.UserEnvironmentPaths.DesktopPath,
 				Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
 				Constants.UserEnvironmentPaths.DownloadsPath,
-				Path.Combine(userProfile, "OneDrive", "Documents", "New project"),
 				Path.Combine(userProfile, "source"),
 				Path.Combine(userProfile, "repos")
 			};

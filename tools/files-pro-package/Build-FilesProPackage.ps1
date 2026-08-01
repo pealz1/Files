@@ -15,6 +15,24 @@ $output = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
 	Join-Path $repoRoot $OutputDirectory
 }
 
+function Resolve-MsBuildExe {
+	$vsWhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+	if (Test-Path -LiteralPath $vsWhere) {
+		$candidate = & $vsWhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" |
+			Select-Object -First 1
+		if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+			return [string]$candidate
+		}
+	}
+
+	$candidate = Get-Command "MSBuild.exe" -ErrorAction SilentlyContinue
+	if ($candidate) {
+		return [string]$candidate.Source
+	}
+
+	throw "Visual Studio MSBuild was not found. Install Visual Studio Build Tools with the MSBuild workload."
+}
+
 function Resolve-MsPdbCmfExe {
 	$vsRoot = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio"
 	if (-not (Test-Path -LiteralPath $vsRoot)) {
@@ -71,8 +89,10 @@ if (-not [string]::IsNullOrWhiteSpace($msPdbCmfExe)) {
 	Write-Host "[Files Pro package] mspdbcmf.exe: $msPdbCmfExe"
 }
 
+$msBuildExe = Resolve-MsBuildExe
+Write-Host "[Files Pro package] MSBuild: $msBuildExe"
 Write-Host "[Files Pro package] Building $Configuration $Platform package"
-dotnet build $project -c $Configuration @properties
+& $msBuildExe $project /restore "-p:Configuration=$Configuration" @properties
 if ($LASTEXITCODE -ne 0) {
 	throw "Package build failed with exit code $LASTEXITCODE."
 }

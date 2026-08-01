@@ -66,10 +66,61 @@ function Resolve-LauncherPath($Identity, $InstalledPackage, $ExplicitLauncherPat
 	throw "Could not resolve a Files Pro launcher path. Pass -LauncherPath explicitly."
 }
 
+function Test-DialogIntegrationEnabled {
+	$registrations = @(
+		@{ Path = "Registry::HKEY_CURRENT_USER\Software\Classes\CLSID\{DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7}"; Name = "FilesOpenDialog class" },
+		@{ Path = "Registry::HKEY_CURRENT_USER\Software\Classes\CLSID\{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}"; Name = "FilesSaveDialog class" },
+		@{ Path = "Registry::HKEY_CURRENT_USER\Software\Classes\Wow6432Node\CLSID\{DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7}"; Name = "FilesOpenDialog class" },
+		@{ Path = "Registry::HKEY_CURRENT_USER\Software\Classes\Wow6432Node\CLSID\{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}"; Name = "FilesSaveDialog class" }
+	)
+
+	foreach ($registration in $registrations) {
+		if ((Test-Path -LiteralPath $registration.Path) -and
+			(Get-Item -LiteralPath $registration.Path).GetValue("") -eq $registration.Name) {
+			return $true
+		}
+	}
+
+	return $false
+}
+
+function Update-DialogIntegration($InstalledPackage) {
+	$sourceDirectory = Join-Path $InstalledPackage.InstallLocation "Assets\FilesOpenDialog"
+	$destinationDirectory = Join-Path $env:LOCALAPPDATA "Packages\$($InstalledPackage.PackageFamilyName)\LocalState\FilesOpenDialog"
+	$requiredServers = @(
+		@{ Name = "Files.App.OpenDialog32.dll"; Is32Bit = $true },
+		@{ Name = "Files.App.SaveDialog32.dll"; Is32Bit = $true },
+		@{ Name = "Files.App.OpenDialog64.dll"; Is32Bit = $false },
+		@{ Name = "Files.App.SaveDialog64.dll"; Is32Bit = $false }
+	)
+
+	New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+	foreach ($file in Get-ChildItem -LiteralPath $sourceDirectory -File) {
+		Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $destinationDirectory $file.Name) -Force
+	}
+
+	foreach ($server in $requiredServers) {
+		$dllPath = Join-Path $destinationDirectory $server.Name
+		if (-not (Test-Path -LiteralPath $dllPath)) {
+			throw "Required dialog integration binary is missing: $dllPath"
+		}
+
+		$regsvrDirectory = if ($server.Is32Bit) { "SysWOW64" } else { "System32" }
+		$regsvrPath = Join-Path $env:WINDIR "$regsvrDirectory\regsvr32.exe"
+		$regsvrProcess = Start-Process -FilePath $regsvrPath -ArgumentList "/s /n /i:user `"$dllPath`"" -Wait -PassThru -WindowStyle Hidden
+		if ($regsvrProcess.ExitCode -ne 0) {
+			throw "Dialog registration failed for $($server.Name) with exit code $($regsvrProcess.ExitCode)."
+		}
+	}
+
+	Write-Plan "Refreshed the existing 32-bit and 64-bit open/save dialog integration."
+}
+
 $package = Resolve-Path $PackagePath
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $backupRoot = Join-Path $env:LOCALAPPDATA "FilesPro\InstallBackups\$(Get-Date -Format yyyyMMdd-HHmmss)"
 $identity = Get-MsixIdentity $package
+$dialogIntegrationEnabled = Test-DialogIntegrationEnabled
 
 Write-Plan "Package: $package"
 Write-Plan "Identity: $($identity.Name) $($identity.Version) $($identity.Publisher)"
@@ -97,6 +148,8 @@ $manifest = [ordered]@{
 	PackageIdentity = $identity
 	ExistingPackageFullNames = @($existingPackages | ForEach-Object { $_.PackageFullName })
 	RegisterShell = [bool]$RegisterShell
+	DialogIntegrationWasEnabled = [bool]$dialogIntegrationEnabled
+	DialogIntegrationRefreshed = $false
 	LauncherPath = $LauncherPath
 	ShellApplied = $false
 	ShellBackupDirectory = $null
@@ -107,7 +160,7 @@ $manifest = [ordered]@{
 $manifest | ConvertTo-Json -Depth 8 | Set-Content $manifestPath
 Write-Plan "Rollback manifest: $manifestPath"
 
-Add-AppxPackage -Path $package
+Add-AppxPackage -Path $package -ForceApplicationShutdown -ForceUpdateFromAnyVersion
 Write-Plan "Installed package."
 
 $installedPackage = Get-AppxPackage -Name $identity.Name | Sort-Object PackageFullName -Descending | Select-Object -First 1
@@ -115,6 +168,12 @@ if ($installedPackage) {
 	$manifest.InstalledPackageFullName = $installedPackage.PackageFullName
 	$manifest | ConvertTo-Json -Depth 8 | Set-Content $manifestPath
 	Write-Plan "Installed package full name: $($installedPackage.PackageFullName)"
+}
+
+if ($dialogIntegrationEnabled -and $installedPackage) {
+	Update-DialogIntegration $installedPackage
+	$manifest.DialogIntegrationRefreshed = $true
+	$manifest | ConvertTo-Json -Depth 8 | Set-Content $manifestPath
 }
 
 if ($RegisterShell) {

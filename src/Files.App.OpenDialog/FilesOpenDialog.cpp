@@ -102,7 +102,6 @@ CFilesOpenDialog::CFilesOpenDialog()
 	_fos = FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST;
 	_systemDialog = nullptr;
 	_debugStream = NULL;
-	_dialogEvents = NULL;
 
 	PWSTR pszPath = NULL;
 	HRESULT hr = SHGetKnownFolderPath(FOLDERID_Desktop, 0, NULL, &pszPath);
@@ -262,8 +261,15 @@ STDAPICALL CFilesOpenDialog::Show(HWND hwndOwner)
 
 	if (!_selectedItems.empty())
 	{
-		if (_dialogEvents)
-			_dialogEvents->OnFileOk(this);
+		std::vector<CComPtr<IFileDialogEvents>> eventSinks;
+		for (const auto& entry : _dialogEventSinks)
+			eventSinks.push_back(entry.second);
+
+		for (const auto& eventSink : eventSinks)
+		{
+			if (eventSink)
+				eventSink->OnFileOk(this);
+		}
 	}
 
 	return !_selectedItems.empty() ? S_OK : HRESULT_FROM_WIN32(ERROR_CANCELLED);
@@ -303,8 +309,14 @@ STDAPICALL CFilesOpenDialog::Advise(IFileDialogEvents* pfde, DWORD* pdwCookie)
 #ifdef SYSTEMDIALOG
 	return _systemDialog->Advise(pfde, pdwCookie);
 #endif
-	_dialogEvents = pfde;
-	*pdwCookie = 0;
+	if (!pfde || !pdwCookie)
+		return E_POINTER;
+
+	while (_nextDialogEventCookie == 0 || _dialogEventSinks.find(_nextDialogEventCookie) != _dialogEventSinks.end())
+		++_nextDialogEventCookie;
+
+	*pdwCookie = _nextDialogEventCookie++;
+	_dialogEventSinks[*pdwCookie] = pfde;
 	return S_OK;
 }
 
@@ -314,7 +326,9 @@ STDAPICALL CFilesOpenDialog::Unadvise(DWORD dwCookie)
 #ifdef SYSTEMDIALOG
 	return _systemDialog->Unadvise(dwCookie);
 #endif
-	_dialogEvents = NULL;
+	if (_dialogEventSinks.erase(dwCookie) == 0)
+		return E_INVALIDARG;
+
 	return S_OK;
 }
 

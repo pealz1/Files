@@ -24,5 +24,22 @@ namespace Files.App.SaveDialog.UnitTests
 			Assert.AreEqual("1", parsed.First(c => c.Type == ParsedCommandType.FileTypeIndex).Payload);
 			Assert.AreEqual(ParsedCommandType.OutputPath, parsed.First(c => c.Type == ParsedCommandType.OutputPath).Type);
 		}
+
+		[TestMethod]
+		public void Identifies_Save_And_Open_Dialog_Activations()
+		{
+			Assert.IsTrue(CommandLineParser.IsFileDialogActivation(
+				"-directory \"C:\\Users\\me\\Downloads\" -outputpath \"C:\\Temp\\save.tmp\" -savedialog"));
+			Assert.IsTrue(CommandLineParser.IsFileDialogActivation(
+				"-outputpath \"C:\\Temp\\open.tmp\" -opendialog"));
+		}
+
+		[TestMethod]
+		public void Does_Not_Treat_Normal_Launches_As_Dialogs()
+		{
+			Assert.IsFalse(CommandLineParser.IsFileDialogActivation(null));
+			Assert.IsFalse(CommandLineParser.IsFileDialogActivation("C:\\Users\\me\\Downloads"));
+			Assert.IsFalse(CommandLineParser.IsFileDialogActivation("-outputpath \"C:\\Temp\\result.tmp\""));
+		}
 	}
 }

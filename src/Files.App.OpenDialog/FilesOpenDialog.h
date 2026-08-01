@@ -6,9 +6,8 @@
 
 #pragma once
 
-#define DEBUGLOG
-
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -65,7 +64,8 @@ END_COM_MAP()
 	std::vector<std::wstring> _selectedItems;
 	std::wstring _outputPath;
 	IShellItem* _initFolder;
-	IFileDialogEvents* _dialogEvents;
+	std::map<DWORD, CComPtr<IFileDialogEvents>> _dialogEventSinks;
+	DWORD _nextDialogEventCookie = 1;
 
 	FILE* _debugStream;
 
