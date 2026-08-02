@@ -87,7 +87,8 @@ namespace Files.App.UserControls.TabBar
 			{
 				var selectedInstance = GetCurrentSelectedTabInstance();
 
-				if (!ReferenceEquals(CurrentSelectedAppInstance, selectedInstance))
+				// Never latch a null instance - see BaseTabBar.TabView_SelectionChanged.
+				if (selectedInstance is not null && !ReferenceEquals(CurrentSelectedAppInstance, selectedInstance))
 				{
 					CurrentSelectedAppInstance = selectedInstance;
 					OnCurrentInstanceChanged(new CurrentInstanceChangedEventArgs()

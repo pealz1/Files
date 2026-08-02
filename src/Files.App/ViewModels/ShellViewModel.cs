@@ -2116,7 +2116,10 @@ namespace Files.App.ViewModels
 				{
 					App.Logger.LogWarning("Folder navigation received a file path: {Path}", path);
 
-					if (SystemIO.File.Exists(path))
+					// Never launch a file in another app from a save/open dialog - picking a file there
+					// must stay inside the dialog (this is what made choosing an image open Photos
+					// instead of uploading it).
+					if (SystemIO.File.Exists(path) && !App.IsSaveDialog && !App.IsOpenDialog)
 					{
 						await Win32Helper.InvokeWin32ComponentAsync(path, ContentPageContext.ShellPage, workingDirectory: SystemIO.Path.GetDirectoryName(path) ?? string.Empty);
 						return -1;

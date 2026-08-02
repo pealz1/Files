@@ -321,6 +321,13 @@ namespace Files.App.Helpers
 		/// </summary>
 		public static void SaveSessionTabs()
 		{
+			// A save/open dialog is a throwaway window showing a single folder. Persisting it would
+			// replace the user's real browsing tabs on their next launch. Guarded here rather than at
+			// each call site because every navigation inside a dialog reaches this through
+			// TabItemContent_ContentChanged and CloseTab, not just window close.
+			if (App.IsSaveDialog || App.IsOpenDialog || App.OutputPath is not null)
+				return;
+
 			var userSettingsService = Ioc.Default.GetRequiredService<IUserSettingsService>();
 
 			var tabs = MainPageViewModel.AppInstances

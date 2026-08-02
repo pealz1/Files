@@ -38,8 +38,11 @@ namespace Files.App.Data.Models
 			{
 				try
 				{
-					if (!SetProperty(ref _TabStripSelectedIndex, value))
-						return;
+					// Do NOT skip the sync below when the index is unchanged: the field starts at 0, so
+					// the first tab (index 0) is a no-op change and SelectedTabItem would never be set,
+					// leaving the content area bound to null (blank window). SetProperty already
+					// suppresses the redundant notification, and the assignment below is itself guarded.
+					SetProperty(ref _TabStripSelectedIndex, value);
 
 					if (value >= 0 && value < MainPageViewModel.AppInstances.Count)
 					{

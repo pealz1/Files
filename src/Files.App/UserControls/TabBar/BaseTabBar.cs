@@ -68,19 +68,21 @@ namespace Files.App.UserControls.TabBar
 			if (App.AppModel.TabStripSelectedIndex >= 0 && App.AppModel.TabStripSelectedIndex < Items.Count)
 			{
 				var selectedInstance = GetCurrentSelectedTabInstance();
-				if (ReferenceEquals(CurrentSelectedAppInstance, selectedInstance))
+
+				// A tab's content is null until its frame has navigated. Latching that null would leave
+				// CurrentSelectedAppInstance stuck, so no later event fires and the toolbar, breadcrumb
+				// and sidebar stay bound to the previous tab. Skip instead; the sync is re-run once the
+				// content exists (see NavigationHelpers.InsertAndInitializeTabAsync).
+				if (selectedInstance is null || ReferenceEquals(CurrentSelectedAppInstance, selectedInstance))
 					return;
 
 				CurrentSelectedAppInstance = selectedInstance;
 
-				if (CurrentSelectedAppInstance is not null)
+				CurrentInstanceChanged?.Invoke(this, new CurrentInstanceChangedEventArgs()
 				{
-					CurrentInstanceChanged?.Invoke(this, new CurrentInstanceChangedEventArgs()
-					{
-						CurrentInstance = CurrentSelectedAppInstance,
-						PageInstances = GetAllTabInstances()
-					});
-				}
+					CurrentInstance = CurrentSelectedAppInstance,
+					PageInstances = GetAllTabInstances()
+				});
 			}
 		}
 

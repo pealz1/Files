@@ -345,7 +345,12 @@ namespace Files.App.Views
 
 		private ShellPanesPage? GetActivePanesPage()
 		{
-			var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent.IsCurrentInstance);
+			// TabItemContent is null until the tab's frame has navigated, so it must not be dereferenced
+			// directly. Fall back to the selected tab: with a single tab (every dialog) IsCurrentInstance
+			// may never be set, and without the fallback every dialog result path reports "nothing selected".
+			var instance = MainPageViewModel.AppInstances.FirstOrDefault(x => x.TabItemContent?.IsCurrentInstance == true)
+				?? ViewModel.SelectedTabItem;
+
 			return instance?.TabItemContent as ShellPanesPage;
 		}
 

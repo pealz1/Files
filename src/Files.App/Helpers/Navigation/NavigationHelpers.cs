@@ -115,6 +115,13 @@ namespace Files.App.Helpers
 			try
 			{
 				tabItem.NavigationParameter = navigationParameter;
+
+				// The tab entered the collection before its frame navigated, so the tab bar saw no
+				// content and skipped the instance-changed event. Re-run the sync now that it exists,
+				// otherwise the toolbar, breadcrumb and sidebar keep showing the previous tab.
+				if (switchToNewTab)
+					(MainPageViewModel.MultitaskingControl as UserControls.TabBar.BaseTabBar)?.SelectionChanged();
+
 				await UpdateTabInfoAsync(tabItem, navigationArg);
 			}
 			catch

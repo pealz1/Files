@@ -486,6 +486,10 @@ namespace Files.App.Views.Shells
 
 		protected bool TryOpenFileNavigationTarget(string? navigationPath)
 		{
+			// A save/open dialog must never hand a file off to another app - picking stays in the dialog.
+			if (App.IsSaveDialog || App.IsOpenDialog)
+				return false;
+
 			if (string.IsNullOrWhiteSpace(navigationPath) ||
 				navigationPath.Equals("FilesPro", StringComparison.OrdinalIgnoreCase) ||
 				navigationPath.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ||

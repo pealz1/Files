@@ -271,7 +271,11 @@ namespace Files.App
 			}
 
 			// Continue running the app on the background
+			// A dialog window is throwaway: caching it would leave a zombie "Files" process holding the
+			// single-instance semaphore with stale dialog state, which breaks the next launch's
+			// instance detection. Always let a dialog process terminate.
 			if (userSettingsService.GeneralSettingsService.LeaveAppRunning &&
+				!isDialogWindow &&
 				!AppModel.ForceProcessTermination &&
 				!Process.GetProcessesByName("Files").Any(x => x.Id != Environment.ProcessId))
 			{
