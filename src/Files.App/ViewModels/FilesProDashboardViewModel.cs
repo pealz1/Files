@@ -793,10 +793,16 @@ namespace Files.App.ViewModels
 			if (string.IsNullOrWhiteSpace(path))
 				return;
 
-			var dataPackage = new DataPackage();
-			dataPackage.SetText(path);
-			Clipboard.SetContent(dataPackage);
-			Clipboard.Flush();
+			// Guarded like every other clipboard write in the app (see CopyPathAction): SetContent and
+			// Flush throw a COMException whenever another process holds the clipboard, and this runs
+			// from a plain RelayCommand, so the exception would reach the UI thread unhandled.
+			SafetyExtensions.IgnoreExceptions(() =>
+			{
+				var dataPackage = new DataPackage();
+				dataPackage.SetText(path);
+				Clipboard.SetContent(dataPackage);
+				Clipboard.Flush();
+			});
 		}
 
 		public void Dispose()
