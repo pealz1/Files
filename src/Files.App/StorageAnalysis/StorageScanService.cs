@@ -178,7 +178,7 @@ namespace Files.App.StorageAnalysis
 			IProgress<FilesProScanProgress>? progress,
 			CancellationToken cancellationToken)
 		{
-			var rootPath = Path.GetFullPath(options.RootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			var rootPath = NormalizeRoot(options.RootPath);
 			var largeFiles = new List<LargeFileInfo>();
 			var folderStats = new Dictionary<string, FolderAccumulator>(StringComparer.OrdinalIgnoreCase);
 			var extensionStats = new Dictionary<string, ExtensionAccumulator>(StringComparer.OrdinalIgnoreCase);
@@ -369,7 +369,8 @@ namespace Files.App.StorageAnalysis
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (depth > options.MaxDepth || counters.WasTruncated || SkipDirectoryNames.Contains(directory.Name))
+			if (depth > options.MaxDepth || counters.WasTruncated || SkipDirectoryNames.Contains(directory.Name) ||
+				(depth > 0 && IsUnfollowableLink(directory)))
 				return;
 
 			counters.DirectoriesVisited++;
@@ -447,7 +448,8 @@ namespace Files.App.StorageAnalysis
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (depth > options.MaxDepth || SkipDirectoryNames.Contains(directory.Name))
+			if (depth > options.MaxDepth || SkipDirectoryNames.Contains(directory.Name) ||
+				(depth > 0 && IsUnfollowableLink(directory)))
 				return;
 
 			counters.DirectoriesVisited++;
@@ -496,7 +498,8 @@ namespace Files.App.StorageAnalysis
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (depth > maxDepth || entries.Count >= maxEntries || SkipDirectoryNames.Contains(directory.Name))
+			if (depth > maxDepth || entries.Count >= maxEntries || SkipDirectoryNames.Contains(directory.Name) ||
+				(depth > 0 && IsUnfollowableLink(directory)))
 				return;
 
 			counters.DirectoriesVisited++;
@@ -552,7 +555,8 @@ namespace Files.App.StorageAnalysis
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (depth > options.MaxDepth || SkipDirectoryNames.Contains(directory.Name) || counters.FilesVisited >= options.MaxFiles)
+			if (depth > options.MaxDepth || SkipDirectoryNames.Contains(directory.Name) || counters.FilesVisited >= options.MaxFiles ||
+				(depth > 0 && IsUnfollowableLink(directory)))
 				return;
 
 			counters.DirectoriesVisited++;
@@ -606,7 +610,8 @@ namespace Files.App.StorageAnalysis
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (depth > options.MaxDepth || suggestions.Count >= options.MaxResults)
+			if (depth > options.MaxDepth || suggestions.Count >= options.MaxResults ||
+				(depth > 0 && IsUnfollowableLink(directory)))
 				return;
 
 			counters.DirectoriesVisited++;
@@ -633,7 +638,12 @@ namespace Files.App.StorageAnalysis
 						return;
 				}
 
-				var childDirectories = directory.EnumerateDirectories().ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+				// Grouped rather than ToDictionary: a case-sensitive directory (Windows 10+ / WSL) can
+				// hold both "Foo" and "foo", and a case-insensitive ToDictionary throws on the duplicate,
+				// which the catch below would silently turn into a skipped subtree.
+				var childDirectories = directory.EnumerateDirectories()
+					.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+					.ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 				foreach (var file in directory.EnumerateFiles())
 				{
 					cancellationToken.ThrowIfCancellationRequested();
@@ -962,12 +972,15 @@ namespace Files.App.StorageAnalysis
 				var last = file.Length > chunkSize ? new byte[chunkSize] : [];
 
 				using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 128 * 1024, FileOptions.SequentialScan);
-				var firstRead = stream.Read(first, 0, first.Length);
+				// ReadAtLeast, not Read: a single Read may return fewer bytes than asked for, and since
+				// the byte count feeds the hash, two identical files could hash differently and be
+				// missed as duplicates.
+				var firstRead = stream.ReadAtLeast(first, first.Length, throwOnEndOfStream: false);
 				var lastRead = 0;
 				if (last.Length > 0)
 				{
 					stream.Position = Math.Max(0L, file.Length - last.Length);
-					lastRead = stream.Read(last, 0, last.Length);
+					lastRead = stream.ReadAtLeast(last, last.Length, throwOnEndOfStream: false);
 				}
 
 				var sizeBytes = BitConverter.GetBytes(file.Length);
@@ -1078,12 +1091,35 @@ namespace Files.App.StorageAnalysis
 			accumulator.FileCount++;
 		}
 
+		/// <summary>
+		/// Normalizes a scan root without stripping a drive's trailing separator.
+		/// </summary>
+		/// <remarks>
+		/// Trimming turns "C:\" into "C:", which means "the current directory on drive C" - so
+		/// <see cref="Path.GetRelativePath"/> resolves against the process working directory and
+		/// reports a bogus depth for every path on a whole-drive scan.
+		/// </remarks>
+		private static string NormalizeRoot(string path)
+		{
+			var full = Path.GetFullPath(path);
+			var trimmed = full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+			return trimmed.Length == 0 || trimmed.EndsWith(Path.VolumeSeparatorChar) ? full : trimmed;
+		}
+
 		private static bool IsSameOrSubPath(string rootPath, string candidatePath)
 		{
-			var root = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+			var normalizedRoot = NormalizeRoot(rootPath);
+			var prefix = normalizedRoot.EndsWith(Path.DirectorySeparatorChar) || normalizedRoot.EndsWith(Path.AltDirectorySeparatorChar)
+				? normalizedRoot
+				: normalizedRoot + Path.DirectorySeparatorChar;
+
 			var candidate = Path.GetFullPath(candidatePath);
-			return candidate.Equals(rootPath, StringComparison.OrdinalIgnoreCase) ||
-				candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+
+			// Compared against the NORMALIZED root; the raw argument missed the same-path case.
+			return candidate.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
+				candidate.Equals(prefix, StringComparison.OrdinalIgnoreCase) ||
+				candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 		}
 
 		private static int GetRelativeDepth(string rootPath, string candidatePath)
@@ -1132,7 +1168,10 @@ namespace Files.App.StorageAnalysis
 					}
 
 					foreach (var child in current.EnumerateDirectories())
-						pending.Push(child);
+					{
+						if (!IsUnfollowableLink(child))
+							pending.Push(child);
+					}
 				}
 				catch (Exception ex) when (IsSkippableScanException(ex))
 				{
@@ -1144,6 +1183,28 @@ namespace Files.App.StorageAnalysis
 
 		private static bool IsSkippableScanException(Exception ex)
 			=> (ex is UnauthorizedAccessException or IOException or SystemException) && ex is not OperationCanceledException;
+
+		/// <summary>
+		/// True when a directory is a junction/symlink that recursion must not follow.
+		/// </summary>
+		/// <remarks>
+		/// Windows ships self- and back-referencing junctions ("C:\Users\All Users" to ProgramData,
+		/// "C:\Documents and Settings" to Users, "AppData\Local\Application Data" to its own parent).
+		/// Following them re-walks trees that were already counted, so sizes come out inflated and a
+		/// scan can keep descending until it hits the depth cap. Only applied below the scan root, so
+		/// pointing a scan directly at a junction still works.
+		/// </remarks>
+		private static bool IsUnfollowableLink(DirectoryInfo directory)
+		{
+			try
+			{
+				return directory.Attributes.HasFlag(System.IO.FileAttributes.ReparsePoint);
+			}
+			catch (Exception ex) when (IsSkippableScanException(ex))
+			{
+				return true;
+			}
+		}
 
 		private static bool IsRunningElevated()
 		{

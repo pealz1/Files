@@ -19,6 +19,9 @@ namespace Files.App.StorageAnalysis
 		private const int OutputBufferLength = 1024 * 1024;
 		private const int FileRecordOutputBufferLength = 128 * 1024;
 
+		/// <summary>Largest FILETIME <see cref="DateTimeOffset.FromFileTime"/> accepts.</summary>
+		private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();
+
 		public static bool CanOpenVolume(string rootPath, out string reason)
 		{
 			reason = string.Empty;
@@ -61,7 +64,7 @@ namespace Files.App.StorageAnalysis
 
 			try
 			{
-				var rootPath = Path.GetFullPath(options.RootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+				var rootPath = NormalizeRoot(options.RootPath);
 				var volumeRoot = Path.GetPathRoot(rootPath);
 				if (string.IsNullOrWhiteSpace(volumeRoot))
 				{
@@ -158,7 +161,7 @@ namespace Files.App.StorageAnalysis
 
 			try
 			{
-				var rootPath = Path.GetFullPath(options.RootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+				var rootPath = NormalizeRoot(options.RootPath);
 				var volumeRoot = Path.GetPathRoot(rootPath);
 				if (string.IsNullOrWhiteSpace(volumeRoot))
 				{
@@ -181,6 +184,7 @@ namespace Files.App.StorageAnalysis
 				}
 
 				var pathCache = new Dictionary<ulong, string>(capacity: Math.Min(entries.Count, 65536));
+				var fileRecordBuffer = new byte[FileRecordOutputBufferLength];
 				var largeFiles = new List<LargeFileInfo>();
 				var folderStats = new Dictionary<string, FolderAccumulator>(StringComparer.OrdinalIgnoreCase);
 				var extensionStats = new Dictionary<string, ExtensionAccumulator>(StringComparer.OrdinalIgnoreCase);
@@ -218,7 +222,7 @@ namespace Files.App.StorageAnalysis
 					}
 
 					inspectedFiles++;
-					NtfsFileMetadata? metadata = TryReadNtfsFileMetadata(handle, entry.FileReferenceNumber, out var ntfsMetadata)
+					NtfsFileMetadata? metadata = TryReadNtfsFileMetadata(handle, entry.FileReferenceNumber, fileRecordBuffer, out var ntfsMetadata)
 						? ntfsMetadata
 						: TryReadFileInfoMetadata(path);
 
@@ -432,14 +436,18 @@ namespace Files.App.StorageAnalysis
 			return true;
 		}
 
+		/// <remarks>
+		/// The caller owns <paramref name="output"/>. It used to be a fresh 128 KB array per file,
+		/// which allocated gigabytes over a large scan for no benefit.
+		/// </remarks>
 		private static bool TryReadNtfsFileMetadata(
 			SafeFileHandle handle,
 			ulong fileReferenceNumber,
+			byte[] output,
 			out NtfsFileMetadata metadata)
 		{
 			metadata = default;
 			var input = BitConverter.GetBytes(fileReferenceNumber);
-			var output = new byte[FileRecordOutputBufferLength];
 
 			if (!DeviceIoControl(handle, FsctlGetNtfsFileRecord, input, input.Length, output, output.Length, out var bytesReturned, IntPtr.Zero) ||
 				bytesReturned < 16)
@@ -474,15 +482,17 @@ namespace Files.App.StorageAnalysis
 				var nonResident = output[offset + 8] != 0;
 				var nameLength = output[offset + 9];
 
-				if (attributeType == 0x10 && !nonResident)
+				if (attributeType == 0x10 && !nonResident && offset + 24 <= end)
 				{
 					var valueLength = BitConverter.ToUInt32(output, offset + 16);
 					var valueOffset = BitConverter.ToUInt16(output, offset + 20);
 					var valueStart = offset + valueOffset;
 					if (valueLength >= 16 && valueStart + 16 <= end)
 					{
+						// Range-checked rather than trusted: FromFileTime throws on an out-of-range
+						// value, and one garbage MFT record would abort the entire scan.
 						var writeTime = BitConverter.ToInt64(output, valueStart + 8);
-						if (writeTime > 0)
+						if (writeTime > 0 && writeTime <= MaxFileTime)
 							lastModified = DateTimeOffset.FromFileTime(writeTime);
 					}
 				}
@@ -542,16 +552,53 @@ namespace Files.App.StorageAnalysis
 				path = Path.Combine(path, name);
 			}
 
+			// The MFT root record is named ".", so the raw combine yields "C:\.\Users\...". That string
+			// is stored straight into the results the user sees and used as the folder-stats key, so
+			// canonicalize it once here (the result is cached, so this runs once per entry).
+			try
+			{
+				path = Path.GetFullPath(path);
+			}
+			catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+			{
+				// Keep the raw combine; the caller's path checks will reject it if it is unusable.
+			}
+
 			pathCache[fileReference] = path;
 			return path;
 		}
 
+		/// <summary>
+		/// Normalizes a scan root without stripping a drive's trailing separator.
+		/// </summary>
+		/// <remarks>
+		/// Trimming turns "C:\" into "C:", which Windows reads as "the current directory on drive C",
+		/// not the drive root. <see cref="Path.GetRelativePath"/> then resolves against the process
+		/// working directory and returns a "..\..\" path, so the depth filter rejected every file and
+		/// a whole-drive scan produced no results at all.
+		/// </remarks>
+		private static string NormalizeRoot(string path)
+		{
+			var full = Path.GetFullPath(path);
+			var trimmed = full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+			return trimmed.Length == 0 || trimmed.EndsWith(Path.VolumeSeparatorChar) ? full : trimmed;
+		}
+
 		private static bool IsSameOrSubPath(string rootPath, string candidatePath)
 		{
-			var root = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+			var normalizedRoot = NormalizeRoot(rootPath);
+			var prefix = normalizedRoot.EndsWith(Path.DirectorySeparatorChar) || normalizedRoot.EndsWith(Path.AltDirectorySeparatorChar)
+				? normalizedRoot
+				: normalizedRoot + Path.DirectorySeparatorChar;
+
 			var candidate = Path.GetFullPath(candidatePath);
-			return candidate.Equals(rootPath, StringComparison.OrdinalIgnoreCase) ||
-				candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+
+			// Compare against the NORMALIZED root - comparing to the raw argument missed the
+			// same-path case whenever the caller passed a differently formatted root.
+			return candidate.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
+				candidate.Equals(prefix, StringComparison.OrdinalIgnoreCase) ||
+				candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 		}
 
 		private static bool IsWithinDepth(string rootPath, string candidatePath, int maxDepth)

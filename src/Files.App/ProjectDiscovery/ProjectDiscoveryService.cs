@@ -43,6 +43,10 @@ namespace Files.App.ProjectDiscovery
 
 		private static readonly HashSet<string> SkipDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
 		{
+			// Matches the sibling scanners; without these a scan rooted at a drive walks into them and
+			// burns the whole budget on permission failures.
+			"$Recycle.Bin",
+			"System Volume Information",
 			".git",
 			".hg",
 			".svn",
@@ -177,8 +181,12 @@ namespace Files.App.ProjectDiscovery
 
 			try
 			{
-				return directory.Attributes.HasFlag(FileAttributes.System) &&
-					!directory.Attributes.HasFlag(FileAttributes.Directory);
+				// Was "System && !Directory", which is unsatisfiable for a DirectoryInfo (the Directory
+				// flag is always set), so this check never skipped anything. Testing System alone is not
+				// the fix either - Windows marks real user folders (Documents, Downloads) System/ReadOnly
+				// to drive folder templates, and skipping those would gut the scan. Reparse points are
+				// the actual hazard: junctions like "C:\Users\All Users" re-walk trees already scanned.
+				return directory.Attributes.HasFlag(FileAttributes.ReparsePoint);
 			}
 			catch
 			{

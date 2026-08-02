@@ -298,7 +298,11 @@ namespace Files.App.ViewModels
 			if (IsBusy)
 				return;
 
-			workCancellation?.Dispose();
+			// Cancelled but not disposed: a token whose source has been disposed throws
+			// ObjectDisposedException from Register (which Task.Delay and every cancellable await use),
+			// so disposing while any work still holds the token turns a clean cancel into a crash.
+			// A CancellationTokenSource holds no unmanaged resource here, so GC is sufficient.
+			workCancellation?.Cancel();
 			workCancellation = new CancellationTokenSource();
 			var cancellationToken = workCancellation.Token;
 			var progress = new Progress<FilesProScanProgress>(value => ProgressText = value.DisplayText);
@@ -406,7 +410,11 @@ namespace Files.App.ViewModels
 			if (IsBusy)
 				return;
 
-			workCancellation?.Dispose();
+			// Cancelled but not disposed: a token whose source has been disposed throws
+			// ObjectDisposedException from Register (which Task.Delay and every cancellable await use),
+			// so disposing while any work still holds the token turns a clean cancel into a crash.
+			// A CancellationTokenSource holds no unmanaged resource here, so GC is sufficient.
+			workCancellation?.Cancel();
 			workCancellation = new CancellationTokenSource();
 			var cancellationToken = workCancellation.Token;
 			var progress = new Progress<FilesProScanProgress>(value => ProgressText = value.DisplayText);
@@ -587,7 +595,11 @@ namespace Files.App.ViewModels
 			if (IsBusy || !AllowCleanupExecution)
 				return;
 
-			workCancellation?.Dispose();
+			// Cancelled but not disposed: a token whose source has been disposed throws
+			// ObjectDisposedException from Register (which Task.Delay and every cancellable await use),
+			// so disposing while any work still holds the token turns a clean cancel into a crash.
+			// A CancellationTokenSource holds no unmanaged resource here, so GC is sufficient.
+			workCancellation?.Cancel();
 			workCancellation = new CancellationTokenSource();
 			var cancellationToken = workCancellation.Token;
 			var progress = new Progress<FilesProScanProgress>(value => ProgressText = value.DisplayText);
@@ -630,7 +642,11 @@ namespace Files.App.ViewModels
 			if (IsBusy || !ConfirmCleanupDelete || SelectedCleanupMovePlanItem is null)
 				return;
 
-			workCancellation?.Dispose();
+			// Cancelled but not disposed: a token whose source has been disposed throws
+			// ObjectDisposedException from Register (which Task.Delay and every cancellable await use),
+			// so disposing while any work still holds the token turns a clean cancel into a crash.
+			// A CancellationTokenSource holds no unmanaged resource here, so GC is sufficient.
+			workCancellation?.Cancel();
 			workCancellation = new CancellationTokenSource();
 			var cancellationToken = workCancellation.Token;
 			var progress = new Progress<FilesProScanProgress>(value => ProgressText = value.DisplayText);
@@ -785,8 +801,8 @@ namespace Files.App.ViewModels
 
 		public void Dispose()
 		{
+			// See the comment at the scan entry points: no Dispose while in-flight work holds the token.
 			workCancellation?.Cancel();
-			workCancellation?.Dispose();
 			workCancellation = null;
 		}
 	}

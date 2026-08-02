@@ -155,8 +155,11 @@ namespace Files.App.Cleanup
 				return [];
 
 			var suggestions = new List<CleanupSuggestion>();
+			// Grouped rather than ToDictionary: a per-directory case-sensitive folder (Windows 10+ / WSL)
+			// can hold both "Foo" and "foo", and a case-insensitive ToDictionary throws on the duplicate.
 			var directories = GetDirectories(options.DownloadsPath)
-				.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+				.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+				.ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 			var files = GetFiles(options.DownloadsPath).ToArray();
 			var recentCutoff = DateTimeOffset.Now.AddDays(-Math.Max(1, options.RecentDays));
 
@@ -505,18 +508,28 @@ namespace Files.App.Cleanup
 				return true;
 
 			var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-			var protectedRoots = new[]
-			{
+
+			// System locations are protected along with everything BENEATH them. Matching only the root
+			// itself left every file inside (C:\Windows\System32\..., C:\ProgramData\...) unprotected,
+			// which defeats the point of the guard.
+			var protectedTrees = Normalize(
+			[
 				Environment.GetFolderPath(Environment.SpecialFolder.Windows),
 				Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
 				Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-				Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-				Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-			}
-			.Where(x => !string.IsNullOrWhiteSpace(x))
-			.Select(x => Path.GetFullPath(x).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+				Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
+			]);
 
-			if (protectedRoots.Any(root => string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase)))
+			// The profile root itself is protected, but not its contents - Downloads lives there and is
+			// the whole point of the cleanup plan.
+			var protectedExact = Normalize([Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)]);
+
+			if (protectedExact.Any(root => string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase)))
+				return true;
+
+			if (protectedTrees.Any(root =>
+					string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase) ||
+					fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
 				return true;
 
 			try
@@ -529,6 +542,11 @@ namespace Files.App.Cleanup
 				return false;
 			}
 		}
+
+		private static string[] Normalize(string?[] paths)
+			=> [.. paths
+				.Where(x => !string.IsNullOrWhiteSpace(x))
+				.Select(x => Path.GetFullPath(x!).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))];
 
 		private static string GetOperationLogPath()
 			=> Path.Combine(

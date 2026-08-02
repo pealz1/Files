@@ -253,8 +253,10 @@ namespace Files.App.Indexing
 
 			if (!string.IsNullOrWhiteSpace(parsed.Term))
 			{
-				sql.AppendLine("AND (name LIKE $like OR path LIKE $like OR EXISTS (SELECT 1 FROM content WHERE content.path = files.path AND excerpt LIKE $like))");
-				parameters.Add(("$like", "%" + parsed.Term + "%"));
+				// ESCAPE clause: '%' and '_' are LIKE wildcards, so an unescaped term made "100%" match
+				// every row and "read_me" match "readXme".
+				sql.AppendLine(@"AND (name LIKE $like ESCAPE '\' OR path LIKE $like ESCAPE '\' OR EXISTS (SELECT 1 FROM content WHERE content.path = files.path AND excerpt LIKE $like ESCAPE '\'))");
+				parameters.Add(("$like", "%" + EscapeLikePattern(parsed.Term) + "%"));
 			}
 
 			sql.AppendLine("ORDER BY last_modified_utc DESC LIMIT $limit");
@@ -318,7 +320,11 @@ namespace Files.App.Indexing
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (depth > options.MaxDepth || ignoredFolders.Contains(directory.Name) || IsExcluded(directory.FullName, excludedRoots))
+			// Junctions/symlinks below the root ("C:\Users\All Users", "AppData\Local\Application Data")
+			// point back into trees that are already being indexed, which duplicates entries under a
+			// second set of paths and wastes the MaxFiles budget.
+			if (depth > options.MaxDepth || ignoredFolders.Contains(directory.Name) || IsExcluded(directory.FullName, excludedRoots) ||
+				(depth > 0 && IsUnfollowableLink(directory)))
 				return;
 
 			var childIsInsideRepository = insideRepository || Directory.Exists(Path.Combine(directory.FullName, ".git"));
@@ -438,12 +444,27 @@ namespace Files.App.Indexing
 			{
 				var buffer = new byte[Math.Min(maxBytes, file.Length)];
 				await using var stream = file.OpenRead();
-				var read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
+
+				// ReadAtLeastAsync, not a single ReadAsync: a short read would silently truncate the
+				// excerpt and drop content that should have been searchable.
+				var read = await stream.ReadAtLeastAsync(buffer.AsMemory(0, buffer.Length), buffer.Length, throwOnEndOfStream: false, cancellationToken);
 				return Encoding.UTF8.GetString(buffer, 0, read);
 			}
 			catch
 			{
 				return string.Empty;
+			}
+		}
+
+		private static bool IsUnfollowableLink(DirectoryInfo directory)
+		{
+			try
+			{
+				return directory.Attributes.HasFlag(System.IO.FileAttributes.ReparsePoint);
+			}
+			catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SystemException)
+			{
+				return true;
 			}
 		}
 
@@ -593,6 +614,13 @@ namespace Files.App.Indexing
 
 			return rank;
 		}
+
+		/// <summary>Escapes LIKE wildcards so a search term matches literally (pairs with ESCAPE '\').</summary>
+		private static string EscapeLikePattern(string term)
+			=> term
+				.Replace(@"\", @"\\", StringComparison.Ordinal)
+				.Replace("%", @"\%", StringComparison.Ordinal)
+				.Replace("_", @"\_", StringComparison.Ordinal);
 
 		private static bool IsExcluded(string path, HashSet<string> excludedRoots)
 			=> excludedRoots.Any(root => path.StartsWith(root.TrimEnd('\\', '/') + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));

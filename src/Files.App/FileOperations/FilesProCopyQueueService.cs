@@ -88,6 +88,29 @@ namespace Files.App.FileOperations
 					if (IsSameOrSubPath(request.SourcePath, destinationPath))
 						return Failure(request, "Destination cannot be inside the source folder.");
 
+					// A same-volume move is a rename: instant, and it keeps ACLs, timestamps and
+					// alternate data streams. Copy-then-delete rewrites every byte and loses them.
+					if (request.Kind is FilesProQueuedOperationKind.Move &&
+						IsSameVolume(request.SourcePath, destinationPath) &&
+						!Directory.Exists(destinationPath) &&
+						!File.Exists(destinationPath))
+					{
+						var movedBytes = GetDirectorySize(new DirectoryInfo(request.SourcePath));
+						Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+						Directory.Move(request.SourcePath, destinationPath);
+						AddProcessedBytes(movedBytes, progress);
+
+						return new()
+						{
+							Kind = request.Kind,
+							SourcePath = request.SourcePath,
+							DestinationPath = destinationPath,
+							Succeeded = true,
+							Message = "Moved folder.",
+							BytesProcessed = movedBytes
+						};
+					}
+
 					var directoryBytes = await CopyDirectoryAsync(request.SourcePath, destinationPath, request.Overwrite, bytes => AddProcessedBytes(bytes, progress), cancellationToken);
 					if (request.Kind is FilesProQueuedOperationKind.Move)
 						Directory.Delete(request.SourcePath, recursive: true);
@@ -113,6 +136,26 @@ namespace Files.App.FileOperations
 				Directory.CreateDirectory(destinationDirectory);
 				if (File.Exists(destinationPath) && !request.Overwrite)
 					return Failure(request, "Destination exists and overwrite is false.");
+
+				// Same-volume move: a rename rather than a full rewrite. Besides being instant on a
+				// large file, it preserves the creation time, attributes and alternate data streams
+				// that a stream copy silently drops.
+				if (request.Kind is FilesProQueuedOperationKind.Move && IsSameVolume(request.SourcePath, destinationPath))
+				{
+					var movedBytes = (ulong)Math.Max(0L, new FileInfo(request.SourcePath).Length);
+					File.Move(request.SourcePath, destinationPath, request.Overwrite);
+					AddProcessedBytes(movedBytes, progress);
+
+					return new()
+					{
+						Kind = request.Kind,
+						SourcePath = request.SourcePath,
+						DestinationPath = destinationPath,
+						Succeeded = true,
+						Message = "Moved.",
+						BytesProcessed = movedBytes
+					};
+				}
 
 				var bytes = await CopyFileAsync(request.SourcePath, destinationPath, request.Overwrite, bytes => AddProcessedBytes(bytes, progress), cancellationToken);
 				if (request.Kind is FilesProQueuedOperationKind.Move)
@@ -146,24 +189,63 @@ namespace Files.App.FileOperations
 			Action<ulong> onBytesProcessed,
 			CancellationToken cancellationToken)
 		{
-			await using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-			await using var destination = new FileStream(destinationPath, overwrite ? FileMode.Create : FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-			var buffer = new byte[1024 * 1024];
 			var total = 0UL;
 
-			while (true)
+			await using (var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+			await using (var destination = new FileStream(destinationPath, overwrite ? FileMode.Create : FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
 			{
-				cancellationToken.ThrowIfCancellationRequested();
-				var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
-				if (read <= 0)
-					break;
+				var buffer = new byte[1024 * 1024];
 
-				await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-				total += (ulong)read;
-				onBytesProcessed((ulong)read);
+				while (true)
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
+					if (read <= 0)
+						break;
+
+					await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+					total += (ulong)read;
+					onBytesProcessed((ulong)read);
+				}
 			}
 
+			// A stream copy stamps the destination with "now". Windows' own copy carries the original
+			// timestamps across, and losing them re-dates every copied file - so restore them here,
+			// after the handles are closed.
+			CopyTimestamps(sourcePath, destinationPath);
+
 			return total;
+		}
+
+		private static void CopyTimestamps(string sourcePath, string destinationPath)
+		{
+			try
+			{
+				var source = new FileInfo(sourcePath);
+				File.SetCreationTimeUtc(destinationPath, source.CreationTimeUtc);
+				File.SetLastWriteTimeUtc(destinationPath, source.LastWriteTimeUtc);
+				File.SetLastAccessTimeUtc(destinationPath, source.LastAccessTimeUtc);
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SystemException)
+			{
+				// Timestamps are best-effort; the copy itself already succeeded.
+			}
+		}
+
+		private static bool IsSameVolume(string sourcePath, string destinationPath)
+		{
+			try
+			{
+				var sourceRoot = Path.GetPathRoot(Path.GetFullPath(sourcePath));
+				var destinationRoot = Path.GetPathRoot(Path.GetFullPath(destinationPath));
+
+				return !string.IsNullOrEmpty(sourceRoot) &&
+					string.Equals(sourceRoot, destinationRoot, StringComparison.OrdinalIgnoreCase);
+			}
+			catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+			{
+				return false;
+			}
 		}
 
 		private static string GetUniqueDestinationPath(string destinationPath)
@@ -258,14 +340,23 @@ namespace Files.App.FileOperations
 				return 0;
 
 			var total = 0UL;
-			foreach (var file in directory.EnumerateFiles())
-			{
-				if (!file.Attributes.HasFlag(FileAttributes.ReparsePoint))
-					total += (ulong)Math.Max(0L, file.Length);
-			}
 
-			foreach (var child in directory.EnumerateDirectories())
-				total += GetDirectorySize(child);
+			// Scoped per directory: an unreadable subfolder used to abort the whole size calculation,
+			// so GetRequestSize returned 0 and the queue reported no progress total at all.
+			try
+			{
+				foreach (var file in directory.EnumerateFiles())
+				{
+					if (!file.Attributes.HasFlag(FileAttributes.ReparsePoint))
+						total += (ulong)Math.Max(0L, file.Length);
+				}
+
+				foreach (var child in directory.EnumerateDirectories())
+					total += GetDirectorySize(child);
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SystemException)
+			{
+			}
 
 			return total;
 		}

@@ -274,8 +274,19 @@ namespace Files.App.CommandPalette
 				WorkingDirectory = normalized
 			};
 
-			Process.Start(startInfo);
-			return Succeeded(successMessage);
+			try
+			{
+				Process.Start(startInfo);
+				return Succeeded(successMessage);
+			}
+			catch (Exception ex) when (ex is not OperationCanceledException)
+			{
+				// Returned rather than thrown so callers can fall back. Process.Start throws when the
+				// executable is missing, and that exception used to escape past LaunchTerminal's
+				// PowerShell fallback entirely - so on a machine without Windows Terminal installed,
+				// "Open Terminal Here" reported a failure instead of opening PowerShell.
+				return Failed(ex.Message);
+			}
 		}
 
 		private static string NormalizeWorkingDirectory(string workingDirectory)
@@ -283,8 +294,43 @@ namespace Files.App.CommandPalette
 				? workingDirectory
 				: Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
+		/// <summary>
+		/// Quotes a command-line argument using Windows CreateProcess rules.
+		/// </summary>
+		/// <remarks>
+		/// Backslashes immediately before the closing quote must be doubled, otherwise a path ending in
+		/// a separator - a drive root such as "C:\" - produces "C:\" where the final \" is parsed as an
+		/// escaped quote and the argument runs into the next one.
+		/// </remarks>
 		private static string Quote(string value)
-			=> "\"" + value.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+		{
+			var builder = new System.Text.StringBuilder(value.Length + 8).Append('"');
+			var pendingBackslashes = 0;
+
+			foreach (var character in value)
+			{
+				if (character == '\\')
+				{
+					pendingBackslashes++;
+					continue;
+				}
+
+				if (character == '"')
+				{
+					builder.Append('\\', (pendingBackslashes * 2) + 1);
+					pendingBackslashes = 0;
+				}
+				else
+				{
+					builder.Append('\\', pendingBackslashes);
+					pendingBackslashes = 0;
+				}
+
+				builder.Append(character);
+			}
+
+			return builder.Append('\\', pendingBackslashes * 2).Append('"').ToString();
+		}
 
 		private static CommandPaletteExecutionResult Succeeded(string message)
 			=> new()
